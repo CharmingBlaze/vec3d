@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Vec3D — Vector to 3D Editor</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none}
+:root{
+  --bg:#0b0c10;--panel:#13151c;--card:#1b1e2a;--hover:#22263a;
+  --border:#252836;--border2:#353848;
+  --accent:#00e5ff;--accent2:#ff4d6d;--accent3:#ffd60a;--accent4:#7c3aed;
+  --green:#00e676;--orange:#ff9100;
+  --text:#dde1f0;--dim:#6b7099;--dimmer:#3d4160;
+  --font:'Syne',sans-serif;--mono:'IBM Plex Mono',monospace;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font)}
+
+/* ── LAYOUT ── */
+#app{display:grid;grid-template-rows:44px 1fr 22px;height:100vh}
+#main{display:grid;grid-template-columns:52px 200px 1fr 230px;overflow:hidden}
+
+/* ── TOPBAR ── */
+#topbar{background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:4px}
+.logo{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent);letter-spacing:-.3px;margin-right:10px;white-space:nowrap}
+.logo em{color:var(--accent2);font-style:normal}
+.tsep{width:1px;height:26px;background:var(--border);margin:0 6px}
+.tbtn{background:none;border:none;color:var(--dim);font-size:11px;font-family:var(--font);padding:4px 9px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;transition:all .13s}
+.tbtn svg{width:14px;height:14px;flex-shrink:0}
+.tbtn:hover{background:var(--hover);color:var(--text)}
+.tbtn.danger:hover{color:var(--accent2)}
+.tbtn.primary{background:var(--accent);color:#000;font-weight:600}
+.tbtn.primary:hover{filter:brightness(1.1)}
+.tab-group{display:flex;gap:2px;margin-left:auto;background:var(--card);padding:3px;border-radius:7px}
+.vtab{padding:3px 13px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;color:var(--dim);transition:all .13s;border:none;background:none;font-family:var(--font)}
+.vtab.on{background:var(--accent);color:#000}
+
+/* ── ICON TOOLBAR ── */
+#ltb{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;overflow:hidden}
+.it{width:38px;height:38px;border-radius:8px;border:1px solid transparent;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--dim);transition:all .13s;position:relative;flex-shrink:0}
+.it svg{width:19px;height:19px}
+.it:hover{background:var(--hover);color:var(--text)}
+.it.on{background:rgba(0,229,255,.1);border-color:var(--accent);color:var(--accent)}
+.it-sep{width:26px;height:1px;background:var(--border);margin:3px 0}
+.tooltip{position:absolute;left:46px;top:50%;transform:translateY(-50%);background:var(--card);border:1px solid var(--border2);color:var(--text);font-size:10px;font-family:var(--mono);padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .1s;z-index:999}
+.it:hover .tooltip{opacity:1}
+
+/* ── LEFT PANEL ── */
+#lpanel{background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.ps{padding:12px;border-bottom:1px solid var(--border)}
+.ph{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dimmer);margin-bottom:8px}
+.color-stack{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.cs-swatches{position:relative;width:50px;height:44px}
+.cs-bg{position:absolute;width:30px;height:30px;border-radius:6px;border:1.5px solid var(--border2);bottom:0;right:0;cursor:pointer}
+.cs-fg{position:absolute;width:30px;height:30px;border-radius:6px;border:1.5px solid var(--text);top:0;left:0;cursor:pointer;z-index:2}
+input[type=color]{flex:1;height:30px;border:1px solid var(--border2);border-radius:6px;padding:0;cursor:pointer;background:none}
+.pal{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-bottom:10px}
+.psw{aspect-ratio:1;border-radius:4px;cursor:pointer;border:1.5px solid transparent;transition:transform .1s}
+.psw:hover{transform:scale(1.18)}
+.psw.on{border-color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+.row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.rl{font-size:10px;color:var(--dim);min-width:56px;font-family:var(--mono)}
+.rv{font-size:10px;font-weight:600;color:var(--accent);min-width:30px;text-align:right}
+input[type=range]{flex:1;-webkit-appearance:none;height:2px;background:var(--border2);border-radius:1px;cursor:pointer;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer}
+select{width:100%;background:var(--card);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:5px 7px;font-size:10px;font-family:var(--mono);cursor:pointer}
+select:focus{outline:none;border-color:var(--accent)}
+.btn{width:100%;padding:6px;border-radius:6px;border:1px solid var(--border2);background:var(--card);color:var(--dim);font-size:11px;font-family:var(--font);cursor:pointer;transition:all .13s;margin-bottom:4px;text-align:center}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.danger:hover{border-color:var(--accent2);color:var(--accent2)}
+.shapes-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px}
+.shp{background:var(--card);border:1px solid var(--border2);border-radius:6px;padding:7px 3px;cursor:pointer;font-size:15px;text-align:center;transition:all .13s;line-height:1}
+.shp:hover{border-color:var(--accent)}
+.shp.on{background:rgba(0,229,255,.1);border-color:var(--accent)}
+
+/* ── CANVAS AREA ── */
+#carea{position:relative;overflow:hidden;background:#0e0f18}
+#grid-svg{position:absolute;inset:0;pointer-events:none}
+#main-svg{position:absolute;inset:0;overflow:visible}
+#three-c{position:absolute;inset:0;display:none}
+.mpill{position:absolute;top:10px;left:50%;transform:translateX(-50%);padding:4px 16px;border-radius:16px;font-size:9px;font-weight:600;letter-spacing:2px;pointer-events:none;z-index:20;font-family:var(--mono);text-transform:uppercase}
+.pill-2d{background:rgba(0,229,255,.1);border:1px solid var(--accent);color:var(--accent)}
+.pill-3d{background:rgba(255,77,109,.1);border:1px solid var(--accent2);color:var(--accent2)}
+.zoom-hud{position:absolute;bottom:10px;right:12px;display:flex;gap:4px;z-index:20}
+.zb{background:var(--panel);border:1px solid var(--border2);color:var(--dim);border-radius:5px;width:26px;height:26px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .13s}
+.zb:hover{border-color:var(--accent);color:var(--accent)}
+#zlabel{background:var(--panel);border:1px solid var(--border2);color:var(--dim);border-radius:5px;padding:0 7px;font-size:10px;font-family:var(--mono);display:flex;align-items:center;min-width:46px;justify-content:center}
+
+/* ── RIGHT PANEL ── */
+#rpanel{background:var(--panel);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.node-list{display:flex;flex-direction:column;gap:2px}
+.node-item{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:5px;cursor:pointer;transition:all .12s;font-size:11px}
+.node-item:hover{background:var(--hover)}
+.node-item.on{background:rgba(0,229,255,.08);color:var(--accent)}
+.node-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.node-label{flex:1;font-family:var(--mono);font-size:10px}
+.prop-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px}
+.prop-in{background:var(--card);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:4px 6px;font-size:10px;font-family:var(--mono);width:100%}
+.prop-in:focus{outline:none;border-color:var(--accent)}
+.prop-label{font-size:9px;color:var(--dim);font-family:var(--mono);margin-bottom:2px}
+
+/* ── STATUS ── */
+#statusbar{grid-column:1/-1;background:var(--panel);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:18px;font-size:9px;color:var(--dim);font-family:var(--mono)}
+#statusbar span{white-space:nowrap}
+
+/* SVG element styles */
+.vec-path{cursor:default}
+.vec-path:hover .shape-el{stroke-width:2}
+.anchor-pt{cursor:move}
+.ctrl-pt{cursor:move}
+.ctrl-line{stroke:var(--accent3);stroke-width:1;stroke-dasharray:3,2;pointer-events:none}
+.sel-box{fill:rgba(0,229,255,.06);stroke:var(--accent);stroke-width:1;stroke-dasharray:5,3}
+
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="logo">Vec<em>3D</em></div>
+  <div class="tsep"></div>
+  <button class="tbtn" id="tb-new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>New</button>
+  <button class="tbtn" id="tb-open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>Import SVG</button>
+  <button class="tbtn" id="tb-save-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save SVG</button>
+  <div class="tsep"></div>
+  <button class="tbtn" id="tb-undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>Undo</button>
+  <button class="tbtn" id="tb-redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 014-4h12"/></svg>Redo</button>
+  <div class="tsep"></div>
+  <button class="tbtn" id="tb-group"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Group</button>
+  <button class="tbtn danger" id="tb-del"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
+  <div class="tab-group">
+    <button class="vtab on" id="vtab-2d">2D Edit</button>
+    <button class="vtab" id="vtab-3d">3D View</button>
+  </div>
+</div>
+
+<div id="main">
+
+<!-- ICON TOOLBAR -->
+<div id="ltb">
+  <button class="it on" data-tool="select"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7-3-17z"/></svg><span class="tooltip">Select (V)</span></button>
+  <button class="it" data-tool="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><line x1="14" y1="10" x2="17" y2="7"/><line x1="7" y1="17" x2="10" y2="14"/></svg><span class="tooltip">Node Edit (N)</span></button>
+  <div class="it-sep"></div>
+  <button class="it" data-tool="pen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg><span class="tooltip">Pen / Bezier (P)</span></button>
+  <button class="it" data-tool="pencil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg><span class="tooltip">Freehand (F)</span></button>
+  <div class="it-sep"></div>
+  <button class="it" data-tool="rect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg><span class="tooltip">Rectangle (R)</span></button>
+  <button class="it" data-tool="ellipse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="7"/></svg><span class="tooltip">Ellipse (E)</span></button>
+  <button class="it" data-tool="polygon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/></svg><span class="tooltip">Polygon (G)</span></button>
+  <button class="it" data-tool="star"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg><span class="tooltip">Star (S)</span></button>
+  <div class="it-sep"></div>
+  <button class="it" data-tool="line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/></svg><span class="tooltip">Line (L)</span></button>
+  <button class="it" data-tool="text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg><span class="tooltip">Text (T)</span></button>
+  <div class="it-sep"></div>
+  <button class="it" data-tool="zoom-in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg><span class="tooltip">Zoom In (+)</span></button>
+  <button class="it" data-tool="zoom-out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg><span class="tooltip">Zoom Out (-)</span></button>
+</div>
+
+<!-- LEFT PANEL -->
+<div id="lpanel">
+
+  <div class="ps">
+    <div class="ph">Fill &amp; Stroke</div>
+    <div class="color-stack">
+      <div class="cs-swatches">
+        <div class="cs-bg" id="cs-bg" style="background:#000000"></div>
+        <div class="cs-fg" id="cs-fg" style="background:#00e5ff"></div>
+      </div>
+      <input type="color" id="fill-picker" value="#00e5ff">
+    </div>
+    <div class="pal" id="palette"></div>
+    <div class="row"><span class="rl">Stroke</span><input type="color" id="stroke-picker" value="#ffffff" style="flex:1;height:22px"><span class="rv" id="vv-sw">2</span><input type="range" id="sl-sw" min="0" max="20" value="2" step="1" style="width:60px"></div>
+    <div class="row"><span class="rl">Opacity</span><input type="range" id="sl-op" min="0" max="100" value="100" step="1"><span class="rv" id="vv-op">100</span></div>
+  </div>
+
+  <div class="ps">
+    <div class="ph">Shape Preset</div>
+    <div class="shapes-grid">
+      <div class="shp" data-sh="roundrect" title="Round Rect">▢</div>
+      <div class="shp" data-sh="triangle" title="Triangle">△</div>
+      <div class="shp" data-sh="diamond" title="Diamond">◆</div>
+      <div class="shp" data-sh="hexagon" title="Hexagon">⬡</div>
+      <div class="shp" data-sh="star5" title="Star">★</div>
+      <div class="shp" data-sh="star6" title="Star 6">✶</div>
+      <div class="shp" data-sh="heart" title="Heart">♥</div>
+      <div class="shp" data-sh="arrow" title="Arrow">➤</div>
+      <div class="shp" data-sh="cross" title="Cross">✚</div>
+      <div class="shp" data-sh="moon" title="Moon">☽</div>
+      <div class="shp" data-sh="speech" title="Speech">💬</div>
+      <div class="shp" data-sh="cloud" title="Cloud">☁</div>
+    </div>
+    <div class="row"><span class="rl">Fill Mode</span><select id="fill-mode"><option value="solid">Solid</option><option value="none">None (outline)</option></select></div>
+    <div class="row"><span class="rl">Sides</span><input type="range" id="sl-sides" min="3" max="12" value="6" step="1"><span class="rv" id="vv-sides">6</span></div>
+  </div>
+
+  <div class="ps">
+    <div class="ph">Align</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px">
+      <button class="btn" id="al-l" title="Align Left">⊢</button>
+      <button class="btn" id="al-cx" title="Center H">⊕</button>
+      <button class="btn" id="al-r" title="Align Right">⊣</button>
+      <button class="btn" id="al-t" title="Align Top">⊤</button>
+      <button class="btn" id="al-cy" title="Center V">⊕</button>
+      <button class="btn" id="al-b" title="Align Bottom">⊥</button>
+    </div>
+  </div>
+
+  <div class="ps">
+    <div class="ph">Path Ops</div>
+    <button class="btn" id="op-flatten">Flatten to Path</button>
+    <button class="btn" id="op-reverse">Reverse Path</button>
+    <button class="btn" id="op-bool">Boolean Union</button>
+    <button class="btn" id="op-close">Close Path</button>
+  </div>
+
+</div>
+
+<!-- CANVAS -->
+<div id="carea">
+  <svg id="grid-svg" width="100%" height="100%"><defs><pattern id="smallgrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,.05)" stroke-width=".5"/></pattern><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><rect width="100" height="100" fill="url(#smallgrid)"/><path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,.1)" stroke-width=".5"/></pattern></defs><rect width="100%" height="100%" fill="url(#grid)"/></svg>
+  <svg id="main-svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+    <g id="canvas-group" transform="translate(0,0) scale(1)">
+      <rect id="canvas-bg" x="0" y="0" width="800" height="600" fill="#ffffff" rx="2"/>
+      <g id="shapes-layer"></g>
+      <g id="handles-layer"></g>
+      <g id="preview-layer"></g>
+    </g>
+  </svg>
+  <canvas id="three-c"></canvas>
+  <div class="mpill pill-2d" id="mpill">2D VECTOR EDIT</div>
+  <div class="zoom-hud">
+    <button class="zb" id="zoom-out-btn">−</button>
+    <div id="zlabel">100%</div>
+    <button class="zb" id="zoom-in-btn">+</button>
+    <button class="zb" id="zoom-fit">⊡</button>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div id="rpanel">
+
+  <div class="ps">
+    <div class="ph">Layers</div>
+    <div class="node-list" id="layer-list"></div>
+    <div style="display:flex;gap:4px;margin-top:6px">
+      <button class="btn" id="ln-up" style="flex:1;padding:4px">▲</button>
+      <button class="btn" id="ln-dn" style="flex:1;padding:4px">▼</button>
+      <button class="btn danger" id="ln-del" style="flex:1;padding:4px">✕</button>
+    </div>
+  </div>
+
+  <div class="ps">
+    <div class="ph">Transform</div>
+    <div class="prop-grid">
+      <div><div class="prop-label">X</div><input class="prop-in" id="prop-x" type="number" value="0"></div>
+      <div><div class="prop-label">Y</div><input class="prop-in" id="prop-y" type="number" value="0"></div>
+      <div><div class="prop-label">W</div><input class="prop-in" id="prop-w" type="number" value="100"></div>
+      <div><div class="prop-label">H</div><input class="prop-in" id="prop-h" type="number" value="100"></div>
+      <div><div class="prop-label">Rotate°</div><input class="prop-in" id="prop-r" type="number" value="0"></div>
+      <div><div class="prop-label">Scale</div><input class="prop-in" id="prop-s" type="number" value="1" step="0.1"></div>
+    </div>
+    <button class="btn" id="prop-apply">Apply Transform</button>
+  </div>
+
+  <div class="ps">
+    <div class="ph">Convert to 3D</div>
+    <button class="btn primary" id="btn-make3d">▲ Generate 3D Mesh</button>
+    <div style="height:8px"></div>
+    <div class="row"><span class="rl">Depth</span><input type="range" id="d3-depth" min="1" max="300" value="60" step="1"><span class="rv" id="vv-depth">60</span></div>
+    <div class="row"><span class="rl">Bevel</span><input type="range" id="d3-bevel" min="0" max="40" value="6" step="1"><span class="rv" id="vv-bevel">6</span></div>
+    <div class="row"><span class="rl">BvlSeg</span><input type="range" id="d3-bseg" min="1" max="12" value="4" step="1"><span class="rv" id="vv-bseg">4</span></div>
+    <div class="row"><span class="rl">CurveSeg</span><input type="range" id="d3-cseg" min="4" max="64" value="24" step="1"><span class="rv" id="vv-cseg">24</span></div>
+    <div style="height:4px"></div>
+    <div class="row"><span class="rl">Material</span><select id="d3-mat"><option value="phong">Glossy</option><option value="toon">Toon Shade</option><option value="standard">PBR Metal</option><option value="wireframe">Wireframe</option><option value="glass">Glass</option><option value="flat">Flat Color</option></select></div>
+    <div class="row"><span class="rl">Shininess</span><input type="range" id="d3-shine" min="0" max="300" value="100" step="1"><span class="rv" id="vv-shine">100</span></div>
+    <div class="row"><span class="rl">Light</span><input type="range" id="d3-light" min="0" max="200" value="100" step="1"><span class="rv" id="vv-light">100</span></div>
+    <div style="height:6px"></div>
+    <button class="btn" id="btn-3d-reset">Reset Rotation</button>
+    <button class="btn" id="btn-export-obj">↓ Export OBJ</button>
+    <button class="btn" id="btn-export-svg">↓ Export SVG</button>
+    <button class="btn danger" id="btn-clear3d">Clear 3D</button>
+  </div>
+
+  <div class="ps">
+    <div class="ph">3D Controls</div>
+    <div style="font-size:10px;color:var(--dim);line-height:1.8;font-family:var(--mono)">
+      Drag → Rotate<br>
+      Right-drag → Pan<br>
+      Scroll → Zoom<br>
+      <br>
+      <span style="color:var(--text)">Draw shortcuts:</span><br>
+      V Select · N Nodes<br>
+      P Pen · F Freehand<br>
+      R Rect · E Ellipse<br>
+      G Polygon · S Star<br>
+      L Line · T Text<br>
+      Ctrl+Z Undo
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- STATUS -->
+<div id="statusbar">
+  <span id="sb-xy">X: 0  Y: 0</span>
+  <span id="sb-tool">Tool: Select</span>
+  <span id="sb-sel">No selection</span>
+  <span id="sb-objs">Objects: 0</span>
+  <span style="margin-left:auto;color:var(--accent)">Vec3D — Full SVG Editor</span>
+</div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════
+// CORE STATE
+// ═══════════════════════════════════════════════════
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const state = {
+  tool: 'select',
+  fill: '#00e5ff', stroke: '#ffffff', strokeW: 2, opacity: 100,
+  fillMode: 'solid',
+  shape: 'rect',
+  sides: 6,
+  objects: [],       // {id, el, type, data}
+  selected: [],
+  history: [], histIdx: -1,
+  zoom: 1, panX: 0, panY: 0,
+  canvasW: 800, canvasH: 600,
+  // pen tool state
+  penPoints: [],     // [{x,y,cx1,cy1,cx2,cy2}]
+  penEl: null,
+  penPreviewEl: null,
+  draggingHandle: null,
+  // pencil state
+  pencilPts: [],
+  pencilEl: null,
+  // shape drag
+  shapeStart: null,
+  shapePreview: null,
+  // select drag
+  selDragStart: null,
+  selDragOffset: null,
+  // node edit
+  editingNode: null,
+  nodeHandles: [],
+  // three
+  three: {renderer:null,scene:null,camera:null,group:null,animId:null,rotating:true},
+  drag3: false, pan3: false, lm3: {},
+};
+
+let objCounter = 0;
+const mainSvg = document.getElementById('main-svg');
+const canvasGroup = document.getElementById('canvas-group');
+const shapesLayer = document.getElementById('shapes-layer');
+const handlesLayer = document.getElementById('handles-layer');
+const previewLayer = document.getElementById('preview-layer');
+const carea = document.getElementById('carea');
+
+// ═══════════════════════════════════════════════════
+// PALETTE
+// ═══════════════════════════════════════════════════
+const PALETTE = [
+  '#ff4d6d','#ff9100','#ffd60a','#00e676','#00e5ff','#6979f8',
+  '#c77dff','#ffffff','#cccccc','#888888','#444444','#000000',
+  '#e63946','#2ec4b6','#ff9f1c','#457b9d','#a8dadc','#1d3557',
+  '#f72585','#7209b7','#3a0ca3','#4361ee','#4cc9f0','#06d6a0',
+];
+const palEl = document.getElementById('palette');
+PALETTE.forEach(c=>{
+  const d=document.createElement('div');
+  d.className='psw';d.style.background=c;
+  d.onclick=()=>{state.fill=c;document.getElementById('fill-picker').value=c;document.getElementById('cs-fg').style.background=c;updateSelected('fill',c);refreshLayers();};
+  palEl.appendChild(d);
+});
+document.getElementById('fill-picker').oninput=e=>{state.fill=e.target.value;document.getElementById('cs-fg').style.background=e.target.value;updateSelected('fill',e.target.value);};
+document.getElementById('stroke-picker').oninput=e=>{state.stroke=e.target.value;updateSelected('stroke',e.target.value);};
+document.getElementById('cs-fg').onclick=()=>document.getElementById('fill-picker').click();
+
+function sliderBind(id,vid,key){
+  const el=document.getElementById(id),v=document.getElementById(vid);
+  el.oninput=()=>{state[key]=+el.value;v.textContent=el.value;if(key==='opacity')updateSelected('opacity',+el.value/100);};
+}
+sliderBind('sl-sw','vv-sw','strokeW');
+sliderBind('sl-op','vv-op','opacity');
+document.getElementById('sl-sides').oninput=e=>{state.sides=+e.target.value;document.getElementById('vv-sides').textContent=e.target.value;};
+['d3-depth','d3-bevel','d3-bseg','d3-cseg','d3-shine','d3-light'].forEach(id=>{
+  document.getElementById(id).oninput=e=>document.getElementById('vv-'+id.replace('d3-','')).textContent=e.target.value;
+});
+
+// ═══════════════════════════════════════════════════
+// SVG HELPERS
+// ═══════════════════════════════════════════════════
+function svgEl(tag,attrs={}){
+  const el=document.createElementNS(SVG_NS,tag);
+  Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  return el;
+}
+function applyStyle(el,fill,stroke,sw,op=1){
+  el.setAttribute('fill',fill==='none'||state.fillMode==='none'?'none':fill);
+  el.setAttribute('stroke',stroke);
+  el.setAttribute('stroke-width',sw);
+  el.setAttribute('opacity',op);
+}
+function getID(){return 'obj_'+(++objCounter);}
+function addObject(el,type,data={}){
+  const id=getID();
+  el.dataset.id=id;
+  el.setAttribute('class','vec-el');
+  el.addEventListener('mousedown',onObjMouseDown);
+  shapesLayer.appendChild(el);
+  const obj={id,el,type,data,fill:state.fill,stroke:state.stroke,sw:state.strokeW,op:state.opacity/100};
+  state.objects.push(obj);
+  saveHistory();
+  refreshLayers();
+  return obj;
+}
+function getObj(id){return state.objects.find(o=>o.id===id);}
+function updateSelected(prop,val){
+  state.selected.forEach(id=>{
+    const o=getObj(id);if(!o)return;
+    o[prop]=val;
+    if(prop==='fill')o.el.setAttribute('fill',val);
+    if(prop==='stroke')o.el.setAttribute('stroke',val);
+    if(prop==='opacity')o.el.setAttribute('opacity',val);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// COORDINATE HELPERS
+// ═══════════════════════════════════════════════════
+function svgPoint(e){
+  const r=mainSvg.getBoundingClientRect();
+  return {
+    x:(e.clientX-r.left-state.panX)/state.zoom,
+    y:(e.clientY-r.top-state.panY)/state.zoom
+  };
+}
+function screenPoint(e){
+  const r=mainSvg.getBoundingClientRect();
+  return {x:e.clientX-r.left,y:e.clientY-r.top};
+}
+function applyTransform(){
+  canvasGroup.setAttribute('transform',`translate(${state.panX},${state.panY}) scale(${state.zoom})`);
+}
+
+// ═══════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════
+function saveHistory(){
+  const snap=shapesLayer.innerHTML;
+  state.history=state.history.slice(0,state.histIdx+1);
+  state.history.push({svg:snap,objs:JSON.stringify(state.objects.map(o=>({id:o.id,type:o.type,fill:o.fill,stroke:o.stroke,sw:o.sw,op:o.op,data:o.data})))});
+  if(state.history.length>80)state.history.shift();else state.histIdx++;
+  updateStatus();
+}
+function restoreHistory(idx){
+  const h=state.history[idx];if(!h)return;
+  shapesLayer.innerHTML=h.svg;
+  const objs=JSON.parse(h.objs);
+  state.objects=objs.map(o=>{
+    const el=shapesLayer.querySelector(`[data-id="${o.id}"]`);
+    if(el)el.addEventListener('mousedown',onObjMouseDown);
+    return {...o,el};
+  }).filter(o=>o.el);
+  state.selected=[];
+  clearHandles();
+  refreshLayers();
+}
+function undo(){if(state.histIdx>0){state.histIdx--;restoreHistory(state.histIdx);}}
+function redo(){if(state.histIdx<state.history.length-1){state.histIdx++;restoreHistory(state.histIdx);}}
+
+// ═══════════════════════════════════════════════════
+// SELECTION
+// ═══════════════════════════════════════════════════
+function selectObj(id,add=false){
+  if(!add)state.selected=[];
+  if(!state.selected.includes(id))state.selected.push(id);
+  highlightSelected();
+  showHandles();
+  updateProps();
+  updateStatus();
+}
+function deselectAll(){
+  state.selected=[];
+  highlightSelected();
+  clearHandles();
+  updateStatus();
+}
+function highlightSelected(){
+  state.objects.forEach(o=>{
+    const on=state.selected.includes(o.id);
+    o.el.setAttribute('filter',on?'url(#sel-glow)':'');
+    if(!document.getElementById('sel-glow')){
+      const defs=svgEl('defs');
+      const f=svgEl('filter',{id:'sel-glow'});
+      const fe=svgEl('feDropShadow',{dx:'0',dy:'0','stdDeviation':'3','flood-color':state.accent||'#00e5ff','flood-opacity':'0.8'});
+      f.appendChild(fe);defs.appendChild(f);mainSvg.insertBefore(defs,mainSvg.firstChild);
+    }
+  });
+  refreshLayers();
+}
+
+// ═══════════════════════════════════════════════════
+// HANDLE SYSTEM (for select + node edit)
+// ═══════════════════════════════════════════════════
+function clearHandles(){handlesLayer.innerHTML='';}
+function showHandles(){
+  clearHandles();
+  if(state.tool==='node')return showNodeHandles();
+  state.selected.forEach(id=>{
+    const o=getObj(id);if(!o||!o.el)return;
+    const bb=o.el.getBBox();
+    // bounding box
+    const r=svgEl('rect',{x:bb.x-3,y:bb.y-3,width:bb.width+6,height:bb.height+6,fill:'none',stroke:'#00e5ff','stroke-width':.8,'stroke-dasharray':'4,2',class:'sel-box'});
+    handlesLayer.appendChild(r);
+    // corner handles
+    [[bb.x,bb.y],[bb.x+bb.width,bb.y],[bb.x,bb.y+bb.height],[bb.x+bb.width,bb.y+bb.height],
+     [bb.x+bb.width/2,bb.y],[bb.x+bb.width/2,bb.y+bb.height],[bb.x,bb.y+bb.height/2],[bb.x+bb.width,bb.y+bb.height/2]
+    ].forEach(([hx,hy],i)=>{
+      const h=svgEl('rect',{x:hx-4,y:hy-4,width:8,height:8,fill:'#fff',stroke:'#00e5ff','stroke-width':1.5,rx:1,cursor:'nwse-resize'});
+      h.dataset.handleType='scale';h.dataset.corner=i;h.dataset.oid=id;
+      h.dataset.bbx=bb.x;h.dataset.bby=bb.y;h.dataset.bbw=bb.width;h.dataset.bbh=bb.height;
+      h.addEventListener('mousedown',onHandleDown);
+      handlesLayer.appendChild(h);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// NODE EDITING (Bezier)
+// ═══════════════════════════════════════════════════
+function showNodeHandles(){
+  clearHandles();
+  state.selected.forEach(id=>{
+    const o=getObj(id);if(!o)return;
+    if(o.type!=='path')return;
+    const d=o.el.getAttribute('d');
+    const pts=parsePath(d);
+    state.nodeHandles=pts;
+    pts.forEach((pt,i)=>{
+      // draw ctrl handle lines
+      if(pt.c2x!==undefined){
+        const line1=svgEl('line',{x1:pt.x,y1:pt.y,x2:pt.c2x,y2:pt.c2y,class:'ctrl-line'});
+        handlesLayer.appendChild(line1);
+      }
+      if(i<pts.length-1&&pts[i+1].c1x!==undefined){
+        const line2=svgEl('line',{x1:pts[i].x,y1:pts[i].y,x2:pts[i+1].c1x,y2:pts[i+1].c1y,class:'ctrl-line'});
+        handlesLayer.appendChild(line2);
+      }
+      // control point handles
+      if(pt.c1x!==undefined){
+        const ch=svgEl('circle',{cx:pt.c1x,cy:pt.c1y,r:4,fill:'#ffd60a',stroke:'#000','stroke-width':.8,cursor:'move'});
+        ch.dataset.nodeIdx=i;ch.dataset.ctrl='c1';ch.dataset.oid=id;
+        ch.addEventListener('mousedown',onNodeHandleDown);
+        handlesLayer.appendChild(ch);
+      }
+      if(pt.c2x!==undefined){
+        const ch=svgEl('circle',{cx:pt.c2x,cy:pt.c2y,r:4,fill:'#ff9100',stroke:'#000','stroke-width':.8,cursor:'move'});
+        ch.dataset.nodeIdx=i;ch.dataset.ctrl='c2';ch.dataset.oid=id;
+        ch.addEventListener('mousedown',onNodeHandleDown);
+        handlesLayer.appendChild(ch);
+      }
+      // anchor
+      const a=svgEl('rect',{x:pt.x-5,y:pt.y-5,width:10,height:10,fill:i===0?'#00e5ff':'#fff',stroke:'#00e5ff','stroke-width':1.5,rx:1,cursor:'move'});
+      a.dataset.nodeIdx=i;a.dataset.ctrl='anchor';a.dataset.oid=id;
+      a.addEventListener('mousedown',onNodeHandleDown);
+      handlesLayer.appendChild(a);
+    });
+  });
+}
+
+function onNodeHandleDown(e){
+  e.stopPropagation();
+  const {nodeIdx,ctrl,oid}=e.currentTarget.dataset;
+  state.draggingHandle={type:'node',idx:+nodeIdx,ctrl,oid,el:e.currentTarget};
+}
+
+// ═══════════════════════════════════════════════════
+// PATH PARSING & BUILDING
+// ═══════════════════════════════════════════════════
+function parsePath(d){
+  // Returns array of {x,y,c1x?,c1y?,c2x?,c2y?}
+  const pts=[];
+  const cmds=d.match(/[MLCQZz][^MLCQZz]*/g)||[];
+  cmds.forEach(cmd=>{
+    const type=cmd[0];
+    const nums=(cmd.slice(1).match(/-?[\d.]+/g)||[]).map(Number);
+    if(type==='M'||type==='L'){pts.push({x:nums[0],y:nums[1]});}
+    else if(type==='C'){
+      if(pts.length>0){
+        const last=pts[pts.length-1];
+        last.c2x=nums[0];last.c2y=nums[1];
+      }
+      pts.push({c1x:nums[2],c1y:nums[3],x:nums[4],y:nums[5]});
+    }
+    else if(type==='Q'){
+      const qx=nums[0],qy=nums[1];
+      if(pts.length>0){const p=pts[pts.length-1];p.c2x=qx;p.c2y=qy;}
+      pts.push({c1x:qx,c1y:qy,x:nums[2],y:nums[3]});
+    }
+  });
+  return pts;
+}
+
+function buildPath(pts){
+  if(!pts.length)return'';
+  let d=`M ${pts[0].x} ${pts[0].y}`;
+  for(let i=1;i<pts.length;i++){
+    const prev=pts[i-1],cur=pts[i];
+    if(cur.c1x!==undefined||prev.c2x!==undefined){
+      const c1x=cur.c1x??cur.x,c1y=cur.c1y??cur.y;
+      const c2x=prev.c2x??prev.x,c2y=prev.c2y??prev.y;
+      d+=` C ${c2x} ${c2y} ${c1x} ${c1y} ${cur.x} ${cur.y}`;
+    } else {
+      d+=` L ${cur.x} ${cur.y}`;
+    }
+  }
+  return d;
+}
+
+function updatePath(oid){
+  const o=getObj(oid);if(!o)return;
+  const d=buildPath(state.nodeHandles);
+  o.el.setAttribute('d',d);
+}
+
+// ═══════════════════════════════════════════════════
+// PEN TOOL
+// ═══════════════════════════════════════════════════
+function penClick(e){
+  const p=svgPoint(e);
+  if(e.detail===2){finishPen();return;}
+  const pt={x:p.x,y:p.y};
+  // Auto-add bezier handles
+  if(state.penPoints.length>0){
+    const prev=state.penPoints[state.penPoints.length-1];
+    const dx=p.x-prev.x,dy=p.y-prev.y;
+    pt.c1x=p.x-dx*.35;pt.c1y=p.y-dy*.35;
+    prev.c2x=prev.x+dx*.35;prev.c2y=prev.y+dy*.35;
+  }
+  state.penPoints.push(pt);
+  updatePenPreview();
+}
+function updatePenPreview(){
+  if(!state.penPoints.length)return;
+  const d=buildPath(state.penPoints);
+  if(!state.penEl){
+    state.penEl=svgEl('path',{d,fill:'none',stroke:state.stroke,'stroke-width':state.strokeW,class:'pen-preview'});
+    previewLayer.appendChild(state.penEl);
+  } else state.penEl.setAttribute('d',d);
+  // draw anchor dots
+  previewLayer.querySelectorAll('.pen-anchor').forEach(e=>e.remove());
+  state.penPoints.forEach(pt=>{
+    const c=svgEl('circle',{cx:pt.x,cy:pt.y,r:3,fill:'#00e5ff',class:'pen-anchor'});
+    previewLayer.appendChild(c);
+    if(pt.c2x!==undefined){
+      const l=svgEl('line',{x1:pt.x,y1:pt.y,x2:pt.c2x,y2:pt.c2y,stroke:'#ffd60a','stroke-width':.8,'stroke-dasharray':'2,2',class:'pen-anchor'});
+      previewLayer.appendChild(l);
+      const h=svgEl('circle',{cx:pt.c2x,cy:pt.c2y,r:3,fill:'#ffd60a',class:'pen-anchor'});
+      previewLayer.appendChild(h);
+    }
+  });
+}
+function finishPen(){
+  if(state.penPoints.length<2){previewLayer.innerHTML='';state.penPoints=[];state.penEl=null;return;}
+  const d=buildPath(state.penPoints);
+  const el=svgEl('path',{d,fill:state.fillMode==='none'?'none':state.fill,stroke:state.stroke,'stroke-width':state.strokeW,'stroke-linejoin':'round','stroke-linecap':'round'});
+  applyStyle(el,state.fill,state.stroke,state.strokeW,state.opacity/100);
+  const o=addObject(el,'path',{pts:[...state.penPoints]});
+  previewLayer.innerHTML='';state.penPoints=[];state.penEl=null;
+  selectObj(o.id);
+}
+
+// ═══════════════════════════════════════════════════
+// SHAPE CREATION
+// ═══════════════════════════════════════════════════
+function makeShapePreset(name,cx,cy,w,h){
+  const r=Math.min(w,h)/2;
+  let el;
+  const attrs={fill:state.fillMode==='none'?'none':state.fill,stroke:state.stroke,'stroke-width':state.strokeW,opacity:state.opacity/100};
+  switch(name){
+    case 'roundrect':el=svgEl('rect',{x:cx-w/2,y:cy-h/2,width:w,height:h,rx:10,...attrs});break;
+    case 'triangle':{const d=`M ${cx} ${cy-r} L ${cx+r} ${cy+r} L ${cx-r} ${cy+r} Z`;el=svgEl('path',{d,...attrs});break;}
+    case 'diamond':{const d=`M ${cx} ${cy-r} L ${cx+r} ${cy} L ${cx} ${cy+r} L ${cx-r} ${cy} Z`;el=svgEl('path',{d,...attrs});break;}
+    case 'hexagon': el=makePolygon(cx,cy,r,6,attrs);break;
+    case 'star5':   el=makeStar(cx,cy,r,r*.42,5,attrs);break;
+    case 'star6':   el=makeStar(cx,cy,r,r*.6,6,attrs);break;
+    case 'heart':{
+      const d=`M ${cx} ${cy+r*.5} C ${cx-r*2} ${cy-r*.5} ${cx-r*2} ${cy+r*.5} ${cx} ${cy+r*.3} C ${cx+r*2} ${cy+r*.5} ${cx+r*2} ${cy-r*.5} ${cx} ${cy+r*.5} Z`;
+      el=svgEl('path',{d,...attrs});break;
+    }
+    case 'arrow':{
+      const d=`M ${cx-r} ${cy-r*.25} L ${cx} ${cy-r*.25} L ${cx} ${cy-r*.5} L ${cx+r} ${cy} L ${cx} ${cy+r*.5} L ${cx} ${cy+r*.25} L ${cx-r} ${cy+r*.25} Z`;
+      el=svgEl('path',{d,...attrs});break;
+    }
+    case 'cross':{
+      const t=r*.3;
+      const d=`M ${cx-t} ${cy-r} L ${cx+t} ${cy-r} L ${cx+t} ${cy-t} L ${cx+r} ${cy-t} L ${cx+r} ${cy+t} L ${cx+t} ${cy+t} L ${cx+t} ${cy+r} L ${cx-t} ${cy+r} L ${cx-t} ${cy+t} L ${cx-r} ${cy+t} L ${cx-r} ${cy-t} L ${cx-t} ${cy-t} Z`;
+      el=svgEl('path',{d,...attrs});break;
+    }
+    case 'moon':{
+      const d=`M ${cx} ${cy-r} A ${r} ${r} 0 1 1 ${cx} ${cy+r} A ${r*.65} ${r*.65} 0 1 0 ${cx} ${cy-r} Z`;
+      el=svgEl('path',{d,...attrs});break;
+    }
+    case 'speech':{
+      const d=`M ${cx-r} ${cy-r*.6} Q ${cx-r} ${cy-r} ${cx-r*.5} ${cy-r} L ${cx+r*.5} ${cy-r} Q ${cx+r} ${cy-r} ${cx+r} ${cy-r*.6} L ${cx+r} ${cy+r*.3} Q ${cx+r} ${cy+r*.7} ${cx+r*.5} ${cy+r*.7} L ${cx} ${cy+r*.7} L ${cx-.3*r} ${cy+r} L ${cx-.1*r} ${cy+r*.7} L ${cx-r*.5} ${cy+r*.7} Q ${cx-r} ${cy+r*.7} ${cx-r} ${cy+r*.3} Z`;
+      el=svgEl('path',{d,...attrs});break;
+    }
+    case 'cloud':{
+      const d=`M ${cx-r*.3} ${cy+r*.2} A ${r*.45} ${r*.45} 0 1 1 ${cx+r*.3} ${cy+r*.2} A ${r*.38} ${r*.38} 0 1 1 ${cx+r*.7} ${cy+r*.2} A ${r*.3} ${r*.3} 0 0 1 ${cx+r} ${cy+r*.4} L ${cx-r} ${cy+r*.4} A ${r*.3} ${r*.3} 0 0 1 ${cx-r*.7} ${cy+r*.2} A ${r*.38} ${r*.38} 0 1 1 ${cx-.3*r} ${cy+r*.2} Z`;
+      el=svgEl('path',{d,...attrs});break;
+    }
+    default:el=svgEl('rect',{x:cx-w/2,y:cy-h/2,width:w,height:h,...attrs});
+  }
+  return el;
+}
+function makePolygon(cx,cy,r,sides,attrs){
+  const pts=[];
+  for(let i=0;i<sides;i++){const a=(i*Math.PI*2/sides)-Math.PI/2;pts.push(`${cx+Math.cos(a)*r},${cy+Math.sin(a)*r}`);}
+  return svgEl('polygon',{points:pts.join(' '),...attrs});
+}
+function makeStar(cx,cy,r,ir,pts,attrs){
+  const p=[];
+  for(let i=0;i<pts*2;i++){const a=(i*Math.PI/pts)-Math.PI/2,rad=i%2?ir:r;p.push(`${cx+Math.cos(a)*rad},${cy+Math.sin(a)*rad}`);}
+  return svgEl('polygon',{points:p.join(' '),...attrs});
+}
+
+// ═══════════════════════════════════════════════════
+// SHAPE DRAG PREVIEW
+// ═══════════════════════════════════════════════════
+function startShapePreview(e){
+  const p=svgPoint(e);state.shapeStart=p;
+  let el;
+  const attrs={fill:state.fillMode==='none'?'none':'#00e5ff',stroke:'#00e5ff','stroke-width':1,opacity:.6};
+  if(state.tool==='rect')el=svgEl('rect',{x:p.x,y:p.y,width:0,height:0,...attrs});
+  else if(state.tool==='ellipse')el=svgEl('ellipse',{cx:p.x,cy:p.y,rx:0,ry:0,...attrs});
+  else if(state.tool==='line')el=svgEl('line',{x1:p.x,y1:p.y,x2:p.x,y2:p.y,...attrs,fill:'none'});
+  else if(state.tool==='polygon'||state.tool==='star')el=svgEl('polygon',{points:'0,0',...attrs});
+  else if(state.tool==='shape')el=svgEl('path',{d:'M 0 0',...attrs});
+  state.shapePreview=el;
+  if(el)previewLayer.appendChild(el);
+}
+function updateShapePreview(e){
+  if(!state.shapeStart||!state.shapePreview)return;
+  const p=svgPoint(e);
+  const {x:x1,y:y1}=state.shapeStart;
+  const x2=p.x,y2=p.y;
+  const cx=(x1+x2)/2,cy=(y1+y2)/2;
+  const w=Math.abs(x2-x1),h=Math.abs(y2-y1);
+  const r=Math.min(w,h)/2;
+  const el=state.shapePreview;
+  if(state.tool==='rect'){el.setAttribute('x',Math.min(x1,x2));el.setAttribute('y',Math.min(y1,y2));el.setAttribute('width',w);el.setAttribute('height',h);}
+  else if(state.tool==='ellipse'){el.setAttribute('cx',cx);el.setAttribute('cy',cy);el.setAttribute('rx',w/2);el.setAttribute('ry',h/2);}
+  else if(state.tool==='line'){el.setAttribute('x2',x2);el.setAttribute('y2',y2);}
+  else if(state.tool==='polygon'){
+    const pts=[];const sides=state.sides;
+    for(let i=0;i<sides;i++){const a=(i*Math.PI*2/sides)-Math.PI/2;pts.push(`${cx+Math.cos(a)*r},${cy+Math.sin(a)*r}`);}
+    el.setAttribute('points',pts.join(' '));
+  }
+  else if(state.tool==='star'){
+    const pts2=[];const ns=state.sides;const ir=r*.42;
+    for(let i=0;i<ns*2;i++){const a=(i*Math.PI/ns)-Math.PI/2,rad=i%2?ir:r;pts2.push(`${cx+Math.cos(a)*rad},${cy+Math.sin(a)*rad}`);}
+    el.setAttribute('points',pts2.join(' '));
+  }
+  else if(state.tool==='shape'){
+    const d=makeShapePreset(state.shape,cx,cy,w,h);
+    el.setAttribute('d',d.getAttribute?.('d')||'');
+  }
+}
+function finishShapePreview(e){
+  if(!state.shapeStart||!state.shapePreview){state.shapeStart=null;return;}
+  const p=svgPoint(e);
+  const {x:x1,y:y1}=state.shapeStart;
+  const x2=p.x,y2=p.y;
+  const cx=(x1+x2)/2,cy=(y1+y2)/2;
+  const w=Math.abs(x2-x1),h=Math.abs(y2-y1);
+  const r=Math.min(w,h)/2;
+  previewLayer.innerHTML='';state.shapePreview=null;
+
+  if(w<3&&h<3){state.shapeStart=null;return;}
+
+  const attrs={fill:state.fillMode==='none'?'none':state.fill,stroke:state.stroke,'stroke-width':state.strokeW,opacity:state.opacity/100};
+  let el,type='shape';
+  if(state.tool==='rect'){el=svgEl('rect',{x:Math.min(x1,x2),y:Math.min(y1,y2),width:w,height:h,...attrs});type='rect';}
+  else if(state.tool==='ellipse'){el=svgEl('ellipse',{cx,cy,rx:w/2,ry:h/2,...attrs});type='ellipse';}
+  else if(state.tool==='line'){el=svgEl('line',{x1,y1,x2,y2,stroke:state.stroke,'stroke-width':state.strokeW,...attrs,fill:'none'});type='line';}
+  else if(state.tool==='polygon'){el=makePolygon(cx,cy,r,state.sides,attrs);type='polygon';}
+  else if(state.tool==='star'){el=makeStar(cx,cy,r,r*.42,state.sides,attrs);type='star';}
+  else if(state.tool==='shape'){el=makeShapePreset(state.shape,cx,cy,w,h);type='shape';}
+  if(!el){state.shapeStart=null;return;}
+  const o=addObject(el,type);
+  selectObj(o.id);
+  state.shapeStart=null;
+}
+
+// ═══════════════════════════════════════════════════
+// PENCIL FREEHAND → SMOOTH PATH
+// ═══════════════════════════════════════════════════
+function smoothPencilPts(pts,eps=2){
+  // RDP simplify then smooth
+  if(pts.length<3)return pts;
+  function dist2(p,a,b){const dx=b.x-a.x,dy=b.y-a.y;const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy+1e-9)));return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
+  function rdp(p,s,e,eps){let mx=0,mi=s;for(let i=s+1;i<e;i++){const d=dist2(p[i],p[s],p[e]);if(d>mx){mx=d;mi=i;}}return mx>eps?[...rdp(p,s,mi,eps),...rdp(p,mi,e,eps).slice(1)]:[p[s],p[e]];}
+  const simp=rdp(pts,0,pts.length-1,eps);
+  // Build cubic bezier path through simplified points
+  const buildPts=simp.map(p=>({x:p.x,y:p.y}));
+  // assign smooth ctrl handles
+  for(let i=1;i<buildPts.length-1;i++){
+    const prev=buildPts[i-1],cur=buildPts[i],next=buildPts[i+1];
+    const dx=next.x-prev.x,dy=next.y-prev.y;
+    const len=Math.hypot(dx,dy)||1;
+    const t=.25;
+    cur.c1x=cur.x-dx/len*Math.hypot(cur.x-prev.x,cur.y-prev.y)*t;
+    cur.c1y=cur.y-dy/len*Math.hypot(cur.x-prev.x,cur.y-prev.y)*t;
+    cur.c2x=cur.x+dx/len*Math.hypot(cur.x-next.x,cur.y-next.y)*t;
+    cur.c2y=cur.y+dy/len*Math.hypot(cur.x-next.x,cur.y-next.y)*t;
+  }
+  return buildPts;
+}
+
+// ═══════════════════════════════════════════════════
+// MOUSE EVENTS
+// ═══════════════════════════════════════════════════
+let isDragging=false,dragType=null,dragEl=null;
+let panStart=null,spaceDown=false;
+
+mainSvg.addEventListener('mousedown',e=>{
+  if(e.button===1||(e.button===0&&spaceDown)){panStart={x:e.clientX-state.panX,y:e.clientY-state.panY};return;}
+  if(e.button===0)onCanvasDown(e);
+});
+
+function onCanvasDown(e){
+  const p=svgPoint(e);
+  if(state.tool==='pen'){penClick(e);return;}
+  if(state.tool==='pencil'){
+    state.pencilPts=[p];
+    state.pencilEl=svgEl('path',{d:`M ${p.x} ${p.y}`,fill:'none',stroke:state.stroke,'stroke-width':state.strokeW,'stroke-linecap':'round','stroke-linejoin':'round'});
+    previewLayer.appendChild(state.pencilEl);
+    isDragging=true;dragType='pencil';return;
+  }
+  if(['rect','ellipse','polygon','star','line','shape'].includes(state.tool)){
+    startShapePreview(e);isDragging=true;dragType='shape';return;
+  }
+  if(state.tool==='text'){
+    const txt=prompt('Enter text:','Hello');if(!txt)return;
+    const el=svgEl('text',{x:p.x,y:p.y,fill:state.fill,'font-size':24,'font-family':'Syne, sans-serif'});
+    el.textContent=txt;
+    const o=addObject(el,'text');selectObj(o.id);return;
+  }
+  if(state.tool==='zoom-in'){setZoom(state.zoom*1.25,p);return;}
+  if(state.tool==='zoom-out'){setZoom(state.zoom*.8,p);return;}
+  if(state.tool==='select'||state.tool==='node'){
+    deselectAll();isDragging=true;dragType='selbox';
+    state.selDragStart=p;
+    const r=svgEl('rect',{x:p.x,y:p.y,width:0,height:0,class:'sel-box'});
+    previewLayer.appendChild(r);state.shapePreview=r;
+  }
+}
+
+function onObjMouseDown(e){
+  e.stopPropagation();
+  if(state.tool==='pen')return;
+  const id=e.currentTarget.dataset.id;
+  selectObj(id,e.shiftKey);
+  isDragging=true;dragType='move';
+  state.selDragOffset=svgPoint(e);
+}
+
+function onHandleDown(e){
+  e.stopPropagation();
+  isDragging=true;dragType='handle';
+  state.draggingHandle={el:e.currentTarget,...e.currentTarget.dataset};
+}
+
+mainSvg.addEventListener('mousemove',e=>{
+  const p=svgPoint(e);
+  document.getElementById('sb-xy').textContent=`X: ${Math.round(p.x)}  Y: ${Math.round(p.y)}`;
+  if(panStart){state.panX=e.clientX-panStart.x;state.panY=e.clientY-panStart.y;applyTransform();return;}
+  if(!isDragging)return;
+
+  if(dragType==='pencil'){
+    state.pencilPts.push(p);
+    const cur=state.pencilEl;
+    cur.setAttribute('d',cur.getAttribute('d')+` L ${p.x} ${p.y}`);
+    return;
+  }
+  if(dragType==='shape'){updateShapePreview(e);return;}
+  if(dragType==='selbox'&&state.selDragStart&&state.shapePreview){
+    const s=state.selDragStart;
+    state.shapePreview.setAttribute('x',Math.min(s.x,p.x));
+    state.shapePreview.setAttribute('y',Math.min(s.y,p.y));
+    state.shapePreview.setAttribute('width',Math.abs(p.x-s.x));
+    state.shapePreview.setAttribute('height',Math.abs(p.y-s.y));
+    return;
+  }
+  if(dragType==='move'&&state.selDragOffset){
+    const dx=p.x-state.selDragOffset.x,dy=p.y-state.selDragOffset.y;
+    state.selected.forEach(id=>{
+      const o=getObj(id);if(!o)return;
+      const t=o.el.getAttribute('transform')||'';
+      const m=t.match(/translate\(([^,]+),([^)]+)\)/);
+      const ox=m?+m[1]:0,oy=m?+m[2]:0;
+      o.el.setAttribute('transform',`translate(${ox+dx},${oy+dy})`);
+    });
+    state.selDragOffset=p;
+    showHandles();return;
+  }
+  if(dragType==='handle'&&state.draggingHandle){
+    const {oid,corner}=state.draggingHandle;
+    const o=getObj(oid);if(!o)return;
+    const bb=o.el.getBBox();
+    // scale based on corner
+    const corners=[[0,0],[1,0],[0,1],[1,1]];
+    const c=corners[+corner%4]||[.5,.5];
+    const orig=[+state.draggingHandle.bbx,+state.draggingHandle.bby,+state.draggingHandle.bbw,+state.draggingHandle.bbh];
+    const sx=c[0]?((p.x-orig[0])/orig[2]):1;
+    const sy=c[1]?((p.y-orig[1])/orig[3]):1;
+    o.el.setAttribute('transform',`scale(${sx||1},${sy||1})`);
+    showHandles();return;
+  }
+  if(dragType==='nodehandle'||state.draggingHandle?.type==='node'){
+    const {idx,ctrl,oid}=state.draggingHandle||{};
+    if(idx===undefined)return;
+    const pt=state.nodeHandles[+idx];if(!pt)return;
+    if(ctrl==='anchor'){
+      const dx=p.x-pt.x,dy=p.y-pt.y;
+      pt.x=p.x;pt.y=p.y;
+      if(pt.c1x!==undefined){pt.c1x+=dx;pt.c1y+=dy;}
+      if(pt.c2x!==undefined){pt.c2x+=dx;pt.c2y+=dy;}
+    } else if(ctrl==='c1'){pt.c1x=p.x;pt.c1y=p.y;}
+    else if(ctrl==='c2'){pt.c2x=p.x;pt.c2y=p.y;}
+    updatePath(oid);showNodeHandles();return;
+  }
+});
+
+mainSvg.addEventListener('mouseup',e=>{
+  panStart=null;
+  if(dragType==='pencil'){
+    if(state.pencilPts.length>3){
+      previewLayer.innerHTML='';
+      const smoothed=smoothPencilPts(state.pencilPts,2);
+      const d=buildPath(smoothed);
+      const el=svgEl('path',{d,fill:'none',stroke:state.stroke,'stroke-width':state.strokeW,'stroke-linecap':'round','stroke-linejoin':'round',opacity:state.opacity/100});
+      const o=addObject(el,'path',{pts:smoothed});selectObj(o.id);
+    } else previewLayer.innerHTML='';
+    state.pencilPts=[];state.pencilEl=null;
+  }
+  else if(dragType==='shape')finishShapePreview(e);
+  else if(dragType==='selbox'){
+    previewLayer.innerHTML='';state.shapePreview=null;
+    // select objects in box
+    if(state.selDragStart){
+      const p=svgPoint(e);
+      const bx=Math.min(state.selDragStart.x,p.x),by=Math.min(state.selDragStart.y,p.y);
+      const bw=Math.abs(p.x-state.selDragStart.x),bh=Math.abs(p.y-state.selDragStart.y);
+      if(bw>4||bh>4){
+        state.objects.forEach(o=>{
+          try{const bb=o.el.getBBox();if(bb.x+bb.width>bx&&bb.y+bb.height>by&&bb.x<bx+bw&&bb.y<by+bh)selectObj(o.id,true);}catch(e){}
+        });
+      }
+      state.selDragStart=null;
+    }
+  }
+  else if(dragType==='move')saveHistory();
+  else if(dragType==='handle')saveHistory();
+  if(state.draggingHandle?.type==='node')saveHistory();
+  state.draggingHandle=null;
+  isDragging=false;dragType=null;
+});
+
+mainSvg.addEventListener('dblclick',e=>{
+  if(state.tool==='pen')finishPen();
+});
+
+// ═══════════════════════════════════════════════════
+// ZOOM & PAN
+// ═══════════════════════════════════════════════════
+mainSvg.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const p=svgPoint(e);
+  const factor=e.deltaY<0?1.1:.9;
+  setZoom(state.zoom*factor,p);
+},{passive:false});
+function setZoom(z,center){
+  const oz=state.zoom;
+  state.zoom=Math.max(.05,Math.min(20,z));
+  if(center){state.panX+=center.x*(oz-state.zoom);state.panY+=center.y*(oz-state.zoom);}
+  applyTransform();
+  document.getElementById('zlabel').textContent=Math.round(state.zoom*100)+'%';
+}
+document.getElementById('zoom-in-btn').onclick=()=>setZoom(state.zoom*1.25);
+document.getElementById('zoom-out-btn').onclick=()=>setZoom(state.zoom*.8);
+document.getElementById('zoom-fit').onclick=()=>{state.zoom=1;state.panX=50;state.panY=50;applyTransform();document.getElementById('zlabel').textContent='100%';};
+
+// Center canvas initially
+state.panX=50;state.panY=40;applyTransform();
+
+// ═══════════════════════════════════════════════════
+// TOOL SWITCHING
+// ═══════════════════════════════════════════════════
+document.querySelectorAll('[data-tool]').forEach(b=>{
+  b.onclick=()=>{
+    if(b.dataset.tool==='zoom-in'){setZoom(state.zoom*1.25);return;}
+    if(b.dataset.tool==='zoom-out'){setZoom(state.zoom*.8);return;}
+    state.tool=b.dataset.tool;
+    // finish pen if switching away
+    if(state.penPoints.length){finishPen();}
+    document.querySelectorAll('[data-tool]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    mainSvg.style.cursor=state.tool==='pen'?'crosshair':state.tool==='node'?'default':'default';
+    document.getElementById('sb-tool').textContent='Tool: '+state.tool;
+    if(state.tool==='node'&&state.selected.length)showNodeHandles();
+    else if(state.tool!=='node')showHandles();
+  };
+});
+document.querySelectorAll('[data-sh]').forEach(b=>{
+  b.onclick=()=>{state.shape=b.dataset.sh;state.tool='shape';document.querySelectorAll('[data-tool]').forEach(x=>x.classList.remove('on'));document.querySelectorAll('[data-sh]').forEach(x=>x.classList.remove('on'));b.classList.add('on');};
+});
+
+// ═══════════════════════════════════════════════════
+// LAYERS PANEL
+// ═══════════════════════════════════════════════════
+function refreshLayers(){
+  const list=document.getElementById('layer-list');
+  list.innerHTML='';
+  [...state.objects].reverse().forEach(o=>{
+    const d=document.createElement('div');
+    d.className='node-item'+(state.selected.includes(o.id)?' on':'');
+    d.innerHTML=`<div class="node-dot" style="background:${o.fill==='none'?o.stroke:o.fill}"></div><span class="node-label">${o.type} #${o.id.split('_')[1]}</span>`;
+    d.onclick=()=>selectObj(o.id,false);
+    list.appendChild(d);
+  });
+  document.getElementById('sb-objs').textContent=`Objects: ${state.objects.length}`;
+}
+document.getElementById('ln-del').onclick=()=>deleteSelected();
+document.getElementById('ln-up').onclick=()=>{
+  state.selected.forEach(id=>{const o=getObj(id);if(o)shapesLayer.appendChild(o.el);});saveHistory();};
+document.getElementById('ln-dn').onclick=()=>{
+  state.selected.forEach(id=>{const o=getObj(id);if(o)shapesLayer.insertBefore(o.el,shapesLayer.firstChild);});saveHistory();};
+
+// ═══════════════════════════════════════════════════
+// DELETE
+// ═══════════════════════════════════════════════════
+function deleteSelected(){
+  state.selected.forEach(id=>{
+    const o=getObj(id);
+    if(o){o.el.remove();}
+    state.objects=state.objects.filter(x=>x.id!==id);
+  });
+  state.selected=[];clearHandles();saveHistory();refreshLayers();
+}
+
+// ═══════════════════════════════════════════════════
+// PROPS PANEL
+// ═══════════════════════════════════════════════════
+function updateProps(){
+  if(!state.selected.length)return;
+  const o=getObj(state.selected[0]);if(!o)return;
+  try{
+    const bb=o.el.getBBox();
+    document.getElementById('prop-x').value=Math.round(bb.x);
+    document.getElementById('prop-y').value=Math.round(bb.y);
+    document.getElementById('prop-w').value=Math.round(bb.width);
+    document.getElementById('prop-h').value=Math.round(bb.height);
+  }catch(e){}
+}
+document.getElementById('prop-apply').onclick=()=>{
+  state.selected.forEach(id=>{
+    const o=getObj(id);if(!o)return;
+    const x=+document.getElementById('prop-x').value;
+    const y=+document.getElementById('prop-y').value;
+    const r=+document.getElementById('prop-r').value;
+    const sc=+document.getElementById('prop-s').value;
+    try{const bb=o.el.getBBox();o.el.setAttribute('transform',`translate(${x-bb.x},${y-bb.y}) rotate(${r},${bb.x+bb.width/2},${bb.y+bb.height/2}) scale(${sc})`);}catch(e){}
+  });
+  showHandles();saveHistory();
+};
+
+// ═══════════════════════════════════════════════════
+// PATH OPS
+// ═══════════════════════════════════════════════════
+document.getElementById('op-flatten').onclick=()=>{
+  state.selected.forEach(id=>{
+    const o=getObj(id);if(!o)return;
+    // Convert shapes to path
+    if(o.type==='rect'){
+      const el=o.el;
+      const x=+el.getAttribute('x'),y=+el.getAttribute('y'),w=+el.getAttribute('width'),h=+el.getAttribute('height');
+      const d=`M ${x} ${y} L ${x+w} ${y} L ${x+w} ${y+h} L ${x} ${y+h} Z`;
+      const p=svgEl('path',{d,fill:el.getAttribute('fill'),stroke:el.getAttribute('stroke'),'stroke-width':el.getAttribute('stroke-width'),opacity:el.getAttribute('opacity')});
+      p.dataset.id=id;p.addEventListener('mousedown',onObjMouseDown);
+      el.replaceWith(p);o.el=p;o.type='path';
+    }
+  });
+  saveHistory();refreshLayers();
+};
+document.getElementById('op-reverse').onclick=()=>{
+  state.selected.forEach(id=>{
+    const o=getObj(id);if(!o||o.type!=='path')return;
+    const pts=parsePath(o.el.getAttribute('d'));
+    pts.reverse();
+    pts.forEach(pt=>{[pt.c1x,pt.c2x]=[pt.c2x,pt.c1x];[pt.c1y,pt.c2y]=[pt.c2y,pt.c1y];});
+    o.el.setAttribute('d',buildPath(pts));
+  });
+  saveHistory();
+};
+document.getElementById('op-close').onclick=()=>{
+  state.selected.forEach(id=>{
+    const o=getObj(id);if(!o)return;
+    const d=o.el.getAttribute('d');
+    if(d&&!d.trim().endsWith('Z'))o.el.setAttribute('d',d+' Z');
+  });
+  saveHistory();
+};
+document.getElementById('op-bool').onclick=()=>{
+  if(state.selected.length<2)return;
+  // Simple union: just group paths visually (full CSG is beyond browser SVG)
+  const paths=state.selected.map(id=>getObj(id)).filter(o=>o);
+  const ds=paths.map(o=>o.el.getAttribute('d')).filter(Boolean).join(' ');
+  if(!ds)return;
+  paths.forEach(o=>{o.el.remove();state.objects=state.objects.filter(x=>x.id!==o.id);});
+  const el=svgEl('path',{d:ds,'fill-rule':'evenodd',fill:paths[0].fill,stroke:paths[0].stroke,'stroke-width':paths[0].sw,opacity:paths[0].op});
+  const no=addObject(el,'path');state.selected=[no.id];refreshLayers();saveHistory();
+};
+
+// ═══════════════════════════════════════════════════
+// IMPORT / EXPORT SVG
+// ═══════════════════════════════════════════════════
+document.getElementById('tb-open').onclick=()=>{
+  const inp=document.createElement('input');inp.type='file';inp.accept='.svg,image/svg+xml';
+  inp.onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      const parser=new DOMParser();
+      const doc=parser.parseFromString(ev.target.result,'image/svg+xml');
+      const imported=doc.querySelectorAll('path,rect,circle,ellipse,polygon,polyline,line,text');
+      imported.forEach(el=>{
+        const clone=document.importNode(el,true);
+        clone.removeAttribute('id');
+        const type=clone.tagName.toLowerCase();
+        const fill=clone.getAttribute('fill')||state.fill;
+        const stroke=clone.getAttribute('stroke')||'none';
+        clone.setAttribute('fill',fill);clone.setAttribute('stroke',stroke);
+        addObject(clone,type);
+      });
+      saveHistory();
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+};
+document.getElementById('tb-save-svg').onclick=()=>{
+  const svgOut=`<svg xmlns="http://www.w3.org/2000/svg" width="${state.canvasW}" height="${state.canvasH}">${shapesLayer.innerHTML}</svg>`;
+  const a=document.createElement('a');a.href='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgOut);a.download='vec3d_export.svg';a.click();
+};
+document.getElementById('btn-export-svg').onclick=document.getElementById('tb-save-svg').onclick;
+
+// ═══════════════════════════════════════════════════
+// THREE.JS 3D ENGINE
+// ═══════════════════════════════════════════════════
+const threeC=document.getElementById('three-c');
+let threeR=null,threeScene,threeCamera,threeGroup,threeAnimId;
+const meshes3d=[];
+
+function initThree(){
+  if(threeR)return;
+  threeR=new THREE.WebGLRenderer({canvas:threeC,antialias:true,alpha:false});
+  threeR.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  threeR.setSize(threeC.width,threeC.height);
+  threeR.setClearColor(0x0e0f18,1);
+  threeR.shadowMap.enabled=true;
+  threeScene=new THREE.Scene();
+  threeCamera=new THREE.PerspectiveCamera(50,threeC.width/threeC.height,.1,50000);
+  threeCamera.position.set(0,0,800);
+
+  const light=+document.getElementById('d3-light').value/100;
+  threeScene.add(new THREE.AmbientLight(0xffffff,.45*light));
+  const dl=new THREE.DirectionalLight(0xffffff,1.1*light);dl.position.set(500,700,600);dl.castShadow=true;threeScene.add(dl);
+  const rl=new THREE.DirectionalLight(0x6699ff,.4*light);rl.position.set(-600,-200,300);threeScene.add(rl);
+  const pl=new THREE.PointLight(0x00e5ff,.5,6000);pl.position.set(-400,400,300);threeScene.add(pl);
+
+  threeGroup=new THREE.Group();threeScene.add(threeGroup);
+
+  threeC.addEventListener('mousedown',e=>{
+    if(e.button===2){state.pan3=true;}else{state.drag3=true;state.three.rotating=false;}
+    state.lm3={x:e.clientX,y:e.clientY};
+  });
+  threeC.addEventListener('mousemove',e=>{
+    if(state.drag3){threeGroup.rotation.y+=(e.clientX-state.lm3.x)*.013;threeGroup.rotation.x+=(e.clientY-state.lm3.y)*.013;}
+    if(state.pan3){threeGroup.position.x+=(e.clientX-state.lm3.x)*.8;threeGroup.position.y-=(e.clientY-state.lm3.y)*.8;}
+    state.lm3={x:e.clientX,y:e.clientY};
+  });
+  threeC.addEventListener('mouseup',()=>{state.drag3=false;state.pan3=false;});
+  threeC.addEventListener('contextmenu',e=>e.preventDefault());
+  threeC.addEventListener('wheel',e=>{threeCamera.position.z=Math.max(50,Math.min(10000,threeCamera.position.z+e.deltaY*1.5));},{passive:true});
+
+  (function loop(){threeAnimId=requestAnimationFrame(loop);if(!state.drag3&&!state.pan3)threeGroup.rotation.y+=.004;threeR.render(threeScene,threeCamera);})();
+}
+
+function getThreeMat(color,matType){
+  const c=new THREE.Color(color==='none'?'#888888':color);
+  const shine=+document.getElementById('d3-shine').value;
+  switch(matType||document.getElementById('d3-mat').value){
+    case 'toon':return new THREE.MeshToonMaterial({color:c,side:THREE.DoubleSide});
+    case 'standard':return new THREE.MeshStandardMaterial({color:c,metalness:.8,roughness:.15,side:THREE.DoubleSide});
+    case 'wireframe':return new THREE.MeshBasicMaterial({color:c,wireframe:true});
+    case 'glass':return new THREE.MeshPhongMaterial({color:c,transparent:true,opacity:.35,shininess:200,specular:new THREE.Color('#ffffff'),side:THREE.DoubleSide});
+    case 'flat':return new THREE.MeshBasicMaterial({color:c,side:THREE.DoubleSide});
+    default:return new THREE.MeshPhongMaterial({color:c,shininess:shine,specular:new THREE.Color('#666666'),side:THREE.DoubleSide});
+  }
+}
+
+// Convert SVG path 'd' attribute to THREE.Shape
+function svgDtoThreeShape(d,cx,cy,scale){
+  const shape=new THREE.Shape();
+  const cmds=[];
+  // parse path commands
+  const re=/([MLCQTSAZmlcqtsaz])([^MLCQTSAZmlcqtsaz]*)/g;
+  let m;
+  while((m=re.exec(d))!==null){
+    const type=m[1];
+    const nums=(m[2].match(/-?[\d.]+(?:e[-+]?\d+)?/gi)||[]).map(Number);
+    cmds.push({type,nums});
+  }
+  let px=0,py=0,mx=0,my=0;
+  cmds.forEach(({type,nums:n})=>{
+    const abs=type===type.toUpperCase();
+    const tx=(v,i=0)=>(abs?v:px+v)*scale-(cx*scale);
+    const ty=(v,i=0)=>(abs?v:py+v)*-scale+(cy*scale);
+    switch(type.toUpperCase()){
+      case 'M':px=abs?n[0]:px+n[0];py=abs?n[1]:py+n[1];shape.moveTo(tx(n[0]),ty(n[1]));mx=px;my=py;break;
+      case 'L':for(let i=0;i<n.length;i+=2){px=abs?n[i]:px+n[i];py=abs?n[i+1]:py+n[i+1];shape.lineTo(tx(n[i]),ty(n[i+1]));}break;
+      case 'H':px=abs?n[0]:px+n[0];shape.lineTo(tx(px),ty(py));break;
+      case 'V':py=abs?n[0]:py+n[0];shape.lineTo(tx(px),ty(py));break;
+      case 'C':for(let i=0;i<n.length;i+=6){shape.bezierCurveTo(tx(n[i]),ty(n[i+1]),tx(n[i+2]),ty(n[i+3]),tx(n[i+4]),ty(n[i+5]));px=abs?n[i+4]:px+n[i+4];py=abs?n[i+5]:py+n[i+5];}break;
+      case 'Q':for(let i=0;i<n.length;i+=4){shape.quadraticCurveTo(tx(n[i]),ty(n[i+1]),tx(n[i+2]),ty(n[i+3]));px=abs?n[i+2]:px+n[i+2];py=abs?n[i+3]:py+n[i+3];}break;
+      case 'S':{const c1x=tx(2*px-(cmds[cmds.length-2]?.nums[2]??px));const c1y=ty(2*py-(cmds[cmds.length-2]?.nums[3]??py));shape.bezierCurveTo(c1x,c1y,tx(n[0]),ty(n[1]),tx(n[2]),ty(n[3]));px=abs?n[2]:px+n[2];py=abs?n[3]:py+n[3];}break;
+      case 'Z':shape.closePath();px=mx;py=my;break;
+      case 'A':{
+        // Arc approximation
+        const rx=n[0]*scale,ry=n[1]*scale,xRot=n[2]*Math.PI/180,laf=n[3],sf=n[4];
+        const ex=tx(abs?n[5]:px+n[5]),ey=ty(abs?n[6]:py+n[6]);
+        // approximate with lines
+        const steps=16;
+        const curX=tx(px),curY=ty(py);
+        for(let s=1;s<=steps;s++){const t=s/steps;shape.lineTo(curX+(ex-curX)*t,curY+(ey-curY)*t);}
+        px=abs?n[5]:px+n[5];py=abs?n[6]:py+n[6];
+        break;
+      }
+    }
+  });
+  return shape;
+}
+
+// Convert SVG element to Three.js path shape
+function elemToThreeShape(el,cx,cy){
+  const scale=1;
+  const tag=el.tagName.toLowerCase();
+  try{
+    if(tag==='path'){
+      const d=el.getAttribute('d');if(!d)return null;
+      return svgDtoThreeShape(d,cx,cy,scale);
+    }
+    if(tag==='rect'){
+      const x=(+el.getAttribute('x')||0)-cx,y=(+el.getAttribute('y')||0)-cy;
+      const w=+el.getAttribute('width')||0,h=+el.getAttribute('height')||0;
+      const shape=new THREE.Shape();
+      shape.moveTo(x,-y);shape.lineTo(x+w,-y);shape.lineTo(x+w,-(y+h));shape.lineTo(x,-(y+h));shape.closePath();
+      return shape;
+    }
+    if(tag==='ellipse'||tag==='circle'){
+      const ecx=(+el.getAttribute('cx')||0)-cx,ecy=(+el.getAttribute('cy')||0)-cy;
+      const rx=+el.getAttribute('rx')||+el.getAttribute('r')||0;
+      const ry=+el.getAttribute('ry')||+el.getAttribute('r')||0;
+      const shape=new THREE.Shape();shape.ellipse(ecx,-ecy,rx,ry,0,Math.PI*2,false,0);return shape;
+    }
+    if(tag==='polygon'||tag==='polyline'){
+      const pts=(el.getAttribute('points')||'').trim().split(/[\s,]+/).map(Number);
+      if(pts.length<4)return null;
+      const shape=new THREE.Shape();
+      for(let i=0;i<pts.length;i+=2){const px=pts[i]-cx,py=pts[i+1]-cy;i===0?shape.moveTo(px,-py):shape.lineTo(px,-py);}
+      if(tag==='polygon')shape.closePath();
+      return shape;
+    }
+    if(tag==='line'){
+      const x1=+el.getAttribute('x1')||0,y1=+el.getAttribute('y1')||0;
+      const x2=+el.getAttribute('x2')||0,y2=+el.getAttribute('y2')||0;
+      const sw=+el.getAttribute('stroke-width')||2;
+      // Make line a thin rect
+      const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+      const nx=-dy/len*sw*.5,ny=dx/len*sw*.5;
+      const shape=new THREE.Shape();
+      shape.moveTo(x1+nx-cx,-(y1+ny-cy));shape.lineTo(x2+nx-cx,-(y2+ny-cy));
+      shape.lineTo(x2-nx-cx,-(y2-ny-cy));shape.lineTo(x1-nx-cx,-(y1-ny-cy));shape.closePath();
+      return shape;
+    }
+  }catch(e){console.warn('Shape conversion error:',e);}
+  return null;
+}
+
+function generate3D(){
+  const objs=state.selected.length?state.selected.map(id=>getObj(id)).filter(Boolean):state.objects;
+  if(!objs.length){alert('Draw some shapes first, then click Generate 3D!');return;}
+  initThree();threeGroup.clear();meshes3d.length=0;
+
+  const depth=+document.getElementById('d3-depth').value;
+  const bevel=+document.getElementById('d3-bevel').value;
+  const bseg=+document.getElementById('d3-bseg').value;
+  const cseg=+document.getElementById('d3-cseg').value;
+
+  // Find overall bounding box center
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  objs.forEach(o=>{try{const bb=o.el.getBBox();minX=Math.min(minX,bb.x);minY=Math.min(minY,bb.y);maxX=Math.max(maxX,bb.x+bb.width);maxY=Math.max(maxY,bb.y+bb.height);}catch(e){}});
+  const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
+
+  objs.forEach(o=>{
+    const el=o.el;
+    const shape=elemToThreeShape(el,cx,cy);
+    if(!shape)return;
+
+    const matType=document.getElementById('d3-mat').value;
+    let geo;
+    try{
+      if(matType==='wireframe'){
+        geo=new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:bevel>0,bevelSize:bevel,bevelThickness:bevel*.7,bevelSegments:bseg,steps:2,curveSegments:cseg});
+      } else {
+        geo=new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:bevel>0,bevelSize:bevel,bevelThickness:bevel*.7,bevelSegments:bseg,steps:2,curveSegments:cseg});
+      }
+    }catch(e){console.warn('Extrude error',e);return;}
+
+    const fillCol=o.fill!=='none'?o.fill:'#888888';
+    const mesh=new THREE.Mesh(geo,getThreeMat(fillCol));
+    mesh.position.z=-depth/2;
+    threeGroup.add(mesh);meshes3d.push(mesh);
+  });
+
+  if(!meshes3d.length){alert('Could not convert shapes to 3D. Try flattening to path first.');return;}
+  show3DView();
+}
+
+function show3DView(){
+  threeC.style.display='block';
+  threeC.style.pointerEvents='auto';
+  const pill=document.getElementById('mpill');
+  pill.textContent='3D VIEW — Drag rotate · Scroll zoom · Right-drag pan';
+  pill.className='mpill pill-3d';
+  document.getElementById('vtab-3d').classList.add('on');
+  document.getElementById('vtab-2d').classList.remove('on');
+}
+function show2DView(){
+  threeC.style.display='none';
+  threeC.style.pointerEvents='none';
+  const pill=document.getElementById('mpill');
+  pill.textContent='2D VECTOR EDIT';
+  pill.className='mpill pill-2d';
+  document.getElementById('vtab-2d').classList.add('on');
+  document.getElementById('vtab-3d').classList.remove('on');
+}
+
+document.getElementById('btn-make3d').onclick=generate3D;
+document.getElementById('vtab-2d').onclick=show2DView;
+document.getElementById('vtab-3d').onclick=()=>{if(threeR&&meshes3d.length)show3DView();else generate3D();};
+document.getElementById('btn-3d-reset').onclick=()=>{if(threeGroup){threeGroup.rotation.set(0,0,0);threeGroup.position.set(0,0,0);}};
+document.getElementById('btn-clear3d').onclick=()=>{if(threeGroup)threeGroup.clear();meshes3d.length=0;show2DView();};
+document.getElementById('d3-light').oninput=e=>{
+  document.getElementById('vv-light').textContent=e.target.value;
+  if(!threeScene)return;
+  const l=+e.target.value/100;
+  threeScene.children.filter(c=>c.isLight).forEach(lt=>{lt.intensity=lt.isAmbientLight?.0.45*l:1.1*l;});
+};
+
+// ═══════════════════════════════════════════════════
+// OBJ EXPORT
+// ═══════════════════════════════════════════════════
+document.getElementById('btn-export-obj').onclick=()=>{
+  if(!meshes3d.length){alert('Generate 3D first!');return;}
+  let obj='# Vec3D OBJ Export\n',off=1;
+  meshes3d.forEach((m,i)=>{
+    const g=m.geometry;const p=g.attributes.position;
+    obj+=`\no mesh_${i}\n`;
+    for(let j=0;j<p.count;j++)obj+=`v ${p.getX(j).toFixed(5)} ${p.getY(j).toFixed(5)} ${p.getZ(j).toFixed(5)}\n`;
+    if(g.attributes.normal){const n=g.attributes.normal;for(let j=0;j<n.count;j++)obj+=`vn ${n.getX(j).toFixed(5)} ${n.getY(j).toFixed(5)} ${n.getZ(j).toFixed(5)}\n`;}
+    if(g.index){const ix=g.index;for(let j=0;j<ix.count;j+=3)obj+=`f ${ix.getX(j)+off} ${ix.getX(j+1)+off} ${ix.getX(j+2)+off}\n`;}
+    else{for(let j=0;j<p.count;j+=3)obj+=`f ${j+off} ${j+1+off} ${j+2+off}\n`;}
+    off+=p.count;
+  });
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([obj],{type:'text/plain'}));a.download='vec3d_mesh.obj';a.click();
+};
+
+// ═══════════════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+  if(e.key===' '){spaceDown=true;mainSvg.style.cursor='grab';e.preventDefault();}
+  if(e.ctrlKey&&e.key==='z'){e.preventDefault();undo();}
+  if(e.ctrlKey&&e.key==='y'){e.preventDefault();redo();}
+  if(e.ctrlKey&&e.key==='s'){e.preventDefault();document.getElementById('tb-save-svg').click();}
+  if(e.ctrlKey&&e.key==='a'){e.preventDefault();state.objects.forEach(o=>selectObj(o.id,true));}
+  if(e.key==='Delete'||e.key==='Backspace')if(!e.ctrlKey)deleteSelected();
+  if(e.key==='Escape'){deselectAll();if(state.penPoints.length)finishPen();}
+  if(!e.ctrlKey){
+    const m={v:'select',n:'node',p:'pen',f:'pencil',r:'rect',e:'ellipse',g:'polygon',s:'star',l:'line',t:'text'};
+    if(m[e.key]){const b=document.querySelector(`[data-tool="${m[e.key]}"]`);if(b)b.click();}
+    if(e.key==='+')setZoom(state.zoom*1.25);
+    if(e.key==='-')setZoom(state.zoom*.8);
+  }
+});
+document.addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;mainSvg.style.cursor='default';}});
+
+// ═══════════════════════════════════════════════════
+// MISC TOPBAR
+// ═══════════════════════════════════════════════════
+document.getElementById('tb-new').onclick=()=>{if(confirm('Clear all and start new?')){shapesLayer.innerHTML='';state.objects=[];state.selected=[];clearHandles();state.history=[];state.histIdx=-1;if(threeGroup)threeGroup.clear();meshes3d.length=0;show2DView();refreshLayers();}};
+document.getElementById('tb-undo').onclick=undo;
+document.getElementById('tb-redo').onclick=redo;
+document.getElementById('tb-del').onclick=deleteSelected;
+document.getElementById('fill-mode').onchange=e=>state.fillMode=e.target.value;
+
+function updateStatus(){
+  document.getElementById('sb-sel').textContent=state.selected.length?`Selected: ${state.selected.length}`:'No selection';
+  refreshLayers();
+}
+
+// ═══════════════════════════════════════════════════
+// RESIZE
+// ═══════════════════════════════════════════════════
+function resizeAll(){
+  const w=carea.clientWidth,h=carea.clientHeight;
+  threeC.width=w;threeC.height=h;
+  if(threeR){threeR.setSize(w,h);threeCamera.aspect=w/h;threeCamera.updateProjectionMatrix();}
+}
+window.addEventListener('resize',resizeAll);
+resizeAll();
+
+// ═══════════════════════════════════════════════════
+// INITIAL SAVE
+// ═══════════════════════════════════════════════════
+saveHistory();
+refreshLayers();
+</script>
+</body>
+</html>

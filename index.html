@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vec3D — Vector to 3D Editor</title>
+  </head>
+  <body>
+    <svg class="icon-sprite" aria-hidden="true">
+      <symbol id="i-select" viewBox="0 0 24 24"><path d="M5 3l10 10-5 1.5L8.5 20 5 3z"/></symbol>
+      <symbol id="i-node" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="13" cy="18" r="2.5"/><path d="M8.2 7.1l7.6.4M16.5 9.2l-2.7 6.6M11.1 16.6L7.4 8.3"/></symbol>
+      <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l4.5-1 10-10-3.5-3.5-10 10L4 20z"/><path d="M13.5 7L17 10.5"/><circle cx="8.5" cy="15.5" r="1"/></symbol>
+      <symbol id="i-poly" viewBox="0 0 24 24"><path d="M5 17l5-10 5 8 4-6"/><circle cx="5" cy="17" r="1.8"/><circle cx="10" cy="7" r="1.8"/><circle cx="15" cy="15" r="1.8"/><circle cx="19" cy="9" r="1.8"/></symbol>
+      <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 17l1 3 3-1 11-11-4-4L4 15v2z"/><path d="M13.5 5.5l4 4"/></symbol>
+      <symbol id="i-tube" viewBox="0 0 24 24"><path d="M5 12a3 3 0 016 0v0a3 3 0 016 0v0a3 3 0 016 0"/><path d="M5 12h14" stroke-width="6" stroke-linecap="round"/></symbol>
+      <symbol id="i-rect" viewBox="0 0 24 24"><rect x="5" y="6" width="14" height="12" rx="2"/></symbol>
+      <symbol id="i-ellipse" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="5.5"/></symbol>
+      <symbol id="i-polygon" viewBox="0 0 24 24"><path d="M12 4l8 5v6l-8 5-8-5V9l8-5z"/></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.1 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.1 6.1-.7L12 3z"/></symbol>
+      <symbol id="i-line" viewBox="0 0 24 24"><path d="M5 19L19 5"/></symbol>
+      <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M9 19h6"/></symbol>
+      <symbol id="i-roundrect" viewBox="0 0 24 24"><rect x="5" y="6" width="14" height="12" rx="4"/></symbol>
+      <symbol id="i-triangle" viewBox="0 0 24 24"><path d="M12 5l8 14H4L12 5z"/></symbol>
+      <symbol id="i-diamond" viewBox="0 0 24 24"><path d="M12 4l8 8-8 8-8-8 8-8z"/></symbol>
+      <symbol id="i-starburst" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></symbol>
+      <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-8.5-9A4.5 4.5 0 0112 7a4.5 4.5 0 018.5 4c-1.5 4.6-8.5 9-8.5 9z"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h12"/><path d="M13 6l7 6-7 6"/></symbol>
+      <symbol id="i-cross" viewBox="0 0 24 24"><path d="M9 4h6v5h5v6h-5v5H9v-5H4V9h5V4z"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M16.5 18.5A8 8 0 0112 3.2a7 7 0 108 8 8 8 0 01-3.5 7.3z"/></symbol>
+      <symbol id="i-speech" viewBox="0 0 24 24"><path d="M5 6h14v9H9l-4 4V6z"/></symbol>
+      <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 00.5-8 6 6 0 00-11-1.5A4.8 4.8 0 007 18z"/></symbol>
+      <symbol id="i-fit" viewBox="0 0 24 24"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/><rect x="8" y="8" width="8" height="8" rx="1"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    </svg>
+    <div id="app">
+      <div id="topbar">
+        <div class="logo">Vec<em>3D</em></div>
+        <div class="menu-bar">
+          <details class="menu">
+            <summary>File</summary>
+            <div class="menu-pop">
+              <button id="tb-new">New</button>
+              <button id="tb-open">Import SVG</button>
+              <button id="tb-save-svg">Save SVG</button>
+              <button id="btn-export-svg">Export SVG</button>
+            </div>
+          </details>
+          <details class="menu">
+            <summary>Edit</summary>
+            <div class="menu-pop">
+              <button id="tb-undo" type="button" title="Undo (Ctrl+Z)">Undo</button>
+              <button id="tb-redo" type="button" title="Redo (Ctrl+Y / Ctrl+Shift+Z)">Redo</button>
+              <button class="danger" id="tb-del">Delete</button>
+            </div>
+          </details>
+          <details class="menu">
+            <summary>Export</summary>
+            <div class="menu-pop">
+              <button id="btn-export-obj">Export OBJ</button>
+              <button id="btn-export-gltf">Export GLTF</button>
+            </div>
+          </details>
+        </div>
+        <div class="tsep"></div>
+        <div class="tab-group">
+          <button class="vtab on" id="vtab-2d">2D Edit</button>
+          <button class="vtab" id="vtab-3d">3D View</button>
+        </div>
+      </div>
+
+      <div id="main">
+        <div id="ltb">
+          <button class="it on" data-tool="select" title="Select (V)" aria-label="Select"><svg><use href="#i-select"></use></svg></button>
+          <button class="it" data-tool="node" title="Node (N)" aria-label="Node edit"><svg><use href="#i-node"></use></svg></button>
+          <div class="it-sep"></div>
+          <button class="it" data-tool="pen" title="Pen (P)" aria-label="Pen"><svg><use href="#i-pen"></use></svg></button>
+          <button class="it" data-tool="poly" title="Poly Pen (O)" aria-label="Poly pen"><svg><use href="#i-poly"></use></svg></button>
+          <button class="it" data-tool="pencil" title="Freehand (F)" aria-label="Freehand"><svg><use href="#i-pencil"></use></svg></button>
+          <button class="it" data-tool="tube" title="Rounded Tube (B)" aria-label="Rounded tube stroke"><svg><use href="#i-tube"></use></svg></button>
+          <div class="it-sep"></div>
+          <button class="it" data-tool="rect" title="Rect (R)" aria-label="Rectangle"><svg><use href="#i-rect"></use></svg></button>
+          <button class="it" data-tool="ellipse" title="Ellipse (E)" aria-label="Ellipse"><svg><use href="#i-ellipse"></use></svg></button>
+          <button class="it" data-tool="polygon" title="Polygon (G)" aria-label="Polygon"><svg><use href="#i-polygon"></use></svg></button>
+          <button class="it" data-tool="star" title="Star (S)" aria-label="Star"><svg><use href="#i-star"></use></svg></button>
+          <div class="it-sep"></div>
+          <button class="it" data-tool="line" title="Line (L)" aria-label="Line"><svg><use href="#i-line"></use></svg></button>
+          <button class="it" data-tool="text" title="Text (T)" aria-label="Text"><svg><use href="#i-text"></use></svg></button>
+        </div>
+
+        <div id="lpanel">
+          <div class="ps">
+            <div class="ph">Shape Preset</div>
+            <div class="shapes-grid">
+              <button class="shp" type="button" data-sh="roundrect" title="Rounded rectangle"><svg><use href="#i-roundrect"></use></svg></button>
+              <button class="shp" type="button" data-sh="triangle" title="Triangle"><svg><use href="#i-triangle"></use></svg></button>
+              <button class="shp" type="button" data-sh="diamond" title="Diamond"><svg><use href="#i-diamond"></use></svg></button>
+              <button class="shp" type="button" data-sh="hexagon" title="Hexagon"><svg><use href="#i-polygon"></use></svg></button>
+              <button class="shp" type="button" data-sh="star5" title="Star"><svg><use href="#i-star"></use></svg></button>
+              <button class="shp" type="button" data-sh="star6" title="Starburst"><svg><use href="#i-starburst"></use></svg></button>
+              <button class="shp" type="button" data-sh="heart" title="Heart"><svg><use href="#i-heart"></use></svg></button>
+              <button class="shp" type="button" data-sh="arrow" title="Arrow"><svg><use href="#i-arrow"></use></svg></button>
+              <button class="shp" type="button" data-sh="cross" title="Cross"><svg><use href="#i-cross"></use></svg></button>
+              <button class="shp" type="button" data-sh="moon" title="Moon"><svg><use href="#i-moon"></use></svg></button>
+              <button class="shp" type="button" data-sh="speech" title="Speech bubble"><svg><use href="#i-speech"></use></svg></button>
+              <button class="shp" type="button" data-sh="cloud" title="Cloud"><svg><use href="#i-cloud"></use></svg></button>
+            </div>
+            <div class="row">
+              <span class="rl">Fill Mode</span>
+              <select id="fill-mode">
+                <option value="solid">Solid</option>
+                <option value="none">None (outline)</option>
+              </select>
+            </div>
+            <div class="row">
+              <span class="rl">Sides</span>
+              <input type="range" id="sl-sides" min="3" max="12" value="6" />
+              <span class="rv" id="vv-sides">6</span>
+            </div>
+          </div>
+
+          <div class="ps layers-panel">
+            <div class="layers-header">
+              <div class="ph">Layers</div>
+              <span class="layer-count" id="layer-count">0</span>
+            </div>
+            <div class="layer-toolbar">
+              <button class="btn" id="ln-up" type="button">Move Up</button>
+              <button class="btn" id="ln-dn" type="button">Move Down</button>
+              <button class="btn danger" id="ln-del" type="button">Delete</button>
+            </div>
+            <div class="layer-list-wrap">
+              <div class="node-list" id="layer-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="viewport">
+          <div id="carea-2d" class="screen-pane on">
+            <svg id="grid-svg" width="100%" height="100%">
+              <defs>
+                <pattern id="smallgrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,.05)" stroke-width=".5" />
+                </pattern>
+                <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
+                  <rect width="100" height="100" fill="url(#smallgrid)" />
+                  <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,.1)" stroke-width=".5" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
+            <svg id="main-svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+              <g id="canvas-group">
+                <rect id="canvas-bg" x="0" y="0" width="800" height="600" fill="#ffffff" rx="2" />
+                <g id="shapes-layer"></g>
+                <g id="handles-layer"></g>
+                <g id="preview-layer"></g>
+              </g>
+            </svg>
+            <div class="mpill pill-2d" id="mpill">2D VECTOR EDIT</div>
+            <div class="zoom-hud">
+              <button class="zb" id="zoom-out-btn" aria-label="Zoom out"><svg><use href="#i-minus"></use></svg></button>
+              <div id="zlabel">100%</div>
+              <button class="zb" id="zoom-in-btn" aria-label="Zoom in"><svg><use href="#i-plus"></use></svg></button>
+              <button class="zb" id="zoom-fit" aria-label="Fit view"><svg><use href="#i-fit"></use></svg></button>
+            </div>
+          </div>
+
+          <div id="carea-3d" class="screen-pane">
+            <canvas id="three-c"></canvas>
+            <div class="mpill pill-3d">3D LIVE PREVIEW</div>
+            <div class="d3-view-modes" role="group" aria-label="3D display mode">
+              <button type="button" class="d3-vm on" data-d3-view="solid" title="Solid">Solid</button>
+              <button type="button" class="d3-vm" data-d3-view="solid-lines" title="Solid with edge lines">Lines</button>
+              <button type="button" class="d3-vm" data-d3-view="wireframe" title="Wireframe">Wire</button>
+              <button type="button" class="d3-vm" data-d3-view="textured" title="Shaded / textured">Textured</button>
+            </div>
+            <div class="zoom-hud">
+              <button class="zb fit-label" id="zoom-fit-3d" aria-label="Fit 3D view"><svg><use href="#i-fit"></use></svg><span>Fit</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div id="rpanel">
+          <div class="ps">
+            <div class="ph">Transform</div>
+            <div class="prop-grid">
+              <div><div class="prop-label">X</div><input class="prop-in" id="prop-x" type="number" value="0" /></div>
+              <div><div class="prop-label">Y</div><input class="prop-in" id="prop-y" type="number" value="0" /></div>
+              <div><div class="prop-label">W</div><input class="prop-in" id="prop-w" type="number" value="100" /></div>
+              <div><div class="prop-label">H</div><input class="prop-in" id="prop-h" type="number" value="100" /></div>
+              <div><div class="prop-label">Rotate°</div><input class="prop-in" id="prop-r" type="number" value="0" /></div>
+              <div><div class="prop-label">Scale</div><input class="prop-in" id="prop-s" type="number" value="1" step="0.1" /></div>
+            </div>
+            <button class="btn" id="prop-apply">Apply Transform</button>
+          </div>
+
+          <div class="ps">
+            <div class="ph">3D Live <span class="live-badge">REALTIME</span></div>
+            <button class="btn primary" id="btn-3d-reset" type="button">Reset Camera</button>
+            <div class="row">
+              <span class="rl">Draw 3D</span>
+              <select id="d3-stroke-mode">
+                <option value="flat">Flat Extrude</option>
+                <option value="tube">Rounded Tube</option>
+              </select>
+            </div>
+            <div class="row">
+              <span class="rl">Display</span>
+              <select id="d3-view-mode">
+                <option value="solid" data-d3-view="solid">Solid</option>
+                <option value="solid-lines" data-d3-view="solid-lines">Solid with Lines</option>
+                <option value="wireframe" data-d3-view="wireframe">Wireframe</option>
+                <option value="textured" data-d3-view="textured">Textured</option>
+              </select>
+            </div>
+            <div class="row"><span class="rl">Profile</span>
+              <select id="d3-profile">
+                <option value="game" selected>Game Low Poly</option>
+                <option value="slab">Flat Slab</option>
+                <option value="rounded">Rounded Solid</option>
+                <option value="capsule">Capsule / Pill</option>
+                <option value="tube">Rounded Tube</option>
+                <option value="inflated">Inflated / Soft</option>
+                <option value="outline">Outline Logo</option>
+              </select>
+            </div>
+            <div class="row"><span class="rl">Depth</span><input type="range" id="d3-depth" min="1" max="300" value="60" title="Extrusion depth — for strokes/tubes this sets the 3D tube thickness" /><span class="rv" id="vv-depth">60</span></div>
+            <div class="row"><span class="rl">Bevel</span><input type="range" id="d3-bevel" min="0" max="40" value="0" title="Chamfer the silhouette edges (corners of the shape outline)" /><span class="rv" id="vv-bevel">0</span></div>
+            <div class="row"><span class="rl">End Round</span><input type="range" id="d3-round" min="0" max="100" value="0" title="Roundness of front/back caps — 100% = full capsule ends" /><span class="rv" id="vv-round">0</span></div>
+            <div class="row"><span class="rl">BvlSeg</span><input type="range" id="d3-bseg" min="1" max="8" value="1" /><span class="rv" id="vv-bseg">1</span></div>
+            <div class="row"><span class="rl">CurveSeg</span><input type="range" id="d3-cseg" min="3" max="32" value="6" /><span class="rv" id="vv-cseg">6</span></div>
+            <div class="row"><span class="rl">Material</span>
+              <select id="d3-mat">
+                <option value="flat">Flat Color</option>
+                <option value="phong">Glossy</option>
+                <option value="toon">Toon Shade</option>
+                <option value="standard">PBR Metal</option>
+                <option value="wireframe">Wireframe</option>
+                <option value="glass">Glass</option>
+              </select>
+            </div>
+            <div class="row"><span class="rl">Shininess</span><input type="range" id="d3-shine" min="0" max="300" value="100" /><span class="rv" id="vv-shine">100</span></div>
+            <div class="row"><span class="rl">Light</span><input type="range" id="d3-light" min="0" max="200" value="100" /><span class="rv" id="vv-light">100</span></div>
+          </div>
+
+          <div class="ps">
+            <div class="ph">Fill &amp; Stroke</div>
+            <div class="color-stack">
+              <div class="cs-swatches">
+                <button class="cs-bg" id="cs-bg" style="background:#ffffff" title="Stroke color"></button>
+                <button class="cs-fg" id="cs-fg" style="background:#00e5ff" title="Fill color"></button>
+              </div>
+              <button class="btn color-open" id="color-open">Color Picker</button>
+              <input type="color" id="fill-picker" value="#00e5ff" />
+              <input type="color" id="stroke-picker" value="#ffffff" />
+            </div>
+            <div class="color-popover" id="color-popover" hidden>
+              <div class="color-tabs">
+                <button class="mini-tab on" data-color-target="fill">Fill</button>
+                <button class="mini-tab" data-color-target="stroke">Stroke</button>
+              </div>
+              <canvas id="color-rect" width="180" height="112"></canvas>
+              <input type="range" id="color-hue" min="0" max="360" value="186" />
+              <div class="color-fields">
+                <input class="prop-in" id="color-hex" value="#00e5ff" maxlength="7" />
+                <button class="btn" id="color-none">None</button>
+              </div>
+            </div>
+            <div class="pal" id="palette"></div>
+            <div class="row">
+              <span class="rl">Stroke</span>
+              <span class="rv" id="vv-sw">2</span>
+              <input type="range" id="sl-sw" min="0" max="20" value="2" style="width:60px" />
+            </div>
+            <div class="row">
+              <span class="rl">Opacity</span>
+              <input type="range" id="sl-op" min="0" max="100" value="100" />
+              <span class="rv" id="vv-op">100</span>
+            </div>
+          </div>
+
+          <div class="ps">
+            <div class="ph">Align</div>
+            <div class="align-grid">
+              <button class="btn" id="al-l">L</button>
+              <button class="btn" id="al-cx">CX</button>
+              <button class="btn" id="al-r">R</button>
+              <button class="btn" id="al-t">T</button>
+              <button class="btn" id="al-cy">CY</button>
+              <button class="btn" id="al-b">B</button>
+            </div>
+          </div>
+
+          <div class="ps">
+            <div class="ph">Path Ops</div>
+            <button class="btn" id="op-flatten">Flatten to Path</button>
+            <button class="btn" id="op-reverse">Reverse Path</button>
+            <button class="btn" id="op-bool">Boolean Union</button>
+            <button class="btn" id="op-close">Close Path</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="statusbar">
+        <span id="sb-xy">X: 0  Y: 0</span>
+        <span id="sb-tool">Tool: Select</span>
+        <span id="sb-sel">No selection</span>
+        <span id="sb-objs">Objects: 0</span>
+        <span style="margin-left:auto;color:var(--accent)">Vec3D — Realtime Vector → 3D</span>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
