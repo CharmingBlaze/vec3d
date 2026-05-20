@@ -31,6 +31,23 @@ export function makeShapePreset(name, cx, cy, w, h) {
   };
   let el;
   switch (name) {
+    case 'roundsquare': {
+      const side = Math.min(w, h);
+      const corner = Math.max(2, side * 0.22);
+      el = svgEl('rect', {
+        x: cx - side / 2,
+        y: cy - side / 2,
+        width: side,
+        height: side,
+        rx: corner,
+        ry: corner,
+        ...attrs,
+      });
+      break;
+    }
+    case 'oval':
+      el = svgEl('ellipse', { cx, cy, rx: w / 2, ry: h / 2, ...attrs });
+      break;
     case 'roundrect':
       el = svgEl('rect', { x: cx - w / 2, y: cy - h / 2, width: w, height: h, rx: 10, ...attrs });
       break;

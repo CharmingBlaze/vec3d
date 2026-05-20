@@ -5,6 +5,50 @@ import { makePolygon, makeStar, makeShapePreset } from '../svg/shapes.js';
 import { addObject } from '../editor/objects.js';
 import { selectObj } from '../editor/selection.js';
 
+const PREVIEW_STYLE = {
+  fill: 'rgba(129, 140, 248, 0.12)',
+  stroke: '#818cf8',
+  opacity: 1,
+  class: 'shape-preview guide-shape',
+};
+
+function previewStrokeWidth() {
+  return Math.max(2, ctx.state.strokeW);
+}
+
+/** Sync drag preview from a shape preset (path, rect, or ellipse). */
+function syncPresetPreview(cx, cy, w, h) {
+  const { state, dom } = ctx;
+  const preset = makeShapePreset(state.shape, cx, cy, w, h);
+  if (!preset) return;
+
+  const tag = preset.tagName.toLowerCase();
+  const styleKeys = new Set(['fill', 'stroke', 'stroke-width', 'opacity', 'class']);
+  const attrs = {
+    ...PREVIEW_STYLE,
+    fill: state.fillMode === 'none' ? 'none' : PREVIEW_STYLE.fill,
+    'stroke-width': previewStrokeWidth(),
+  };
+  for (const attr of preset.attributes) {
+    if (!styleKeys.has(attr.name)) attrs[attr.name] = attr.value;
+  }
+
+  if (!state.shapePreview || state.shapePreview.tagName.toLowerCase() !== tag) {
+    state.shapePreview?.remove();
+    state.shapePreview = svgEl(tag, attrs);
+    dom.previewLayer.appendChild(state.shapePreview);
+    return;
+  }
+
+  Object.entries(attrs).forEach(([key, val]) => state.shapePreview.setAttribute(key, val));
+}
+
+function presetObjectType(name) {
+  if (name === 'oval') return 'ellipse';
+  if (name === 'roundsquare' || name === 'roundrect') return 'rect';
+  return 'shape';
+}
+
 export function startShapePreview(e) {
   const { state, dom } = ctx;
   const p = svgPoint(e);
@@ -71,8 +115,7 @@ export function updateShapePreview(e) {
     }
     el.setAttribute('points', pts2.join(' '));
   } else if (state.tool === 'shape') {
-    const d = makeShapePreset(state.shape, cx, cy, w, h);
-    el.setAttribute('d', d.getAttribute?.('d') || '');
+    syncPresetPreview(cx, cy, w, h);
   }
 }
 
@@ -133,7 +176,7 @@ export function finishShapePreview(e) {
     type = 'star';
   } else if (state.tool === 'shape') {
     el = makeShapePreset(state.shape, cx, cy, w, h);
-    type = 'shape';
+    type = presetObjectType(state.shape);
   }
   if (!el) {
     state.shapeStart = null;

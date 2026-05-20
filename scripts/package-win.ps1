@@ -4,6 +4,7 @@ $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $releaseDir = Join-Path $root "release"
 $buildReleaseDir = Join-Path $root "release-build"
 $appDir = Join-Path $buildReleaseDir "Vec3D-win32-x64"
+$finalAppDir = Join-Path $releaseDir "Vec3D-win32-x64"
 $zipPath = Join-Path $releaseDir "Vec3D-Windows-x64.zip"
 
 Push-Location $root
@@ -18,7 +19,12 @@ try {
   if (Test-Path $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force
   }
+  if (Test-Path $finalAppDir) {
+    Remove-Item -LiteralPath $finalAppDir -Recurse -Force
+  }
+  Copy-Item -LiteralPath $appDir -Destination $finalAppDir -Recurse
   Compress-Archive -Path (Join-Path $appDir "*") -DestinationPath $zipPath -Force
+  Write-Host "Created $finalAppDir"
   Write-Host "Created $zipPath"
 }
 finally {

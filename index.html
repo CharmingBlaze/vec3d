@@ -19,7 +19,10 @@
       <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.1 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.1 6.1-.7L12 3z"/></symbol>
       <symbol id="i-line" viewBox="0 0 24 24"><path d="M5 19L19 5"/></symbol>
       <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M9 19h6"/></symbol>
+      <symbol id="i-shapes" viewBox="0 0 24 24"><rect x="4" y="5" width="7" height="7" rx="1.5"/><circle cx="16.5" cy="8.5" r="3.5"/><path d="M7.5 15l4 5h-8l4-5zM17 15l4 4-4 4-4-4 4-4z"/></symbol>
       <symbol id="i-roundrect" viewBox="0 0 24 24"><rect x="5" y="6" width="14" height="12" rx="4"/></symbol>
+      <symbol id="i-roundsquare" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3.5"/></symbol>
+      <symbol id="i-oval" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="5.5"/></symbol>
       <symbol id="i-triangle" viewBox="0 0 24 24"><path d="M12 5l8 14H4L12 5z"/></symbol>
       <symbol id="i-diamond" viewBox="0 0 24 24"><path d="M12 4l8 8-8 8-8-8 8-8z"/></symbol>
       <symbol id="i-starburst" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></symbol>
@@ -64,8 +67,20 @@
         </div>
         <div class="tsep"></div>
         <div class="tab-group">
-          <button class="vtab on" id="vtab-2d">2D Edit</button>
-          <button class="vtab" id="vtab-3d">3D View</button>
+          <div class="view-tab-set">
+            <label class="view-bg-swatch" title="2D canvas background">
+              <span class="view-bg-dot" id="bg-2d-dot" aria-hidden="true"></span>
+              <input type="color" id="bg-2d-picker" class="view-bg-input" value="#ffffff" aria-label="2D canvas background" />
+            </label>
+            <button class="vtab on" id="vtab-2d">2D Edit</button>
+          </div>
+          <div class="view-tab-set">
+            <label class="view-bg-swatch" title="3D view background">
+              <span class="view-bg-dot" id="bg-3d-dot" aria-hidden="true"></span>
+              <input type="color" id="bg-3d-picker" class="view-bg-input" value="#0e0f18" aria-label="3D view background" />
+            </label>
+            <button class="vtab" id="vtab-3d">3D View</button>
+          </div>
         </div>
       </div>
 
@@ -79,19 +94,12 @@
           <button class="it" data-tool="pencil" title="Freehand (F)" aria-label="Freehand"><svg><use href="#i-pencil"></use></svg></button>
           <button class="it" data-tool="tube" title="Rounded Tube (B)" aria-label="Rounded tube stroke"><svg><use href="#i-tube"></use></svg></button>
           <div class="it-sep"></div>
-          <button class="it" data-tool="rect" title="Rect (R)" aria-label="Rectangle"><svg><use href="#i-rect"></use></svg></button>
-          <button class="it" data-tool="ellipse" title="Ellipse (E)" aria-label="Ellipse"><svg><use href="#i-ellipse"></use></svg></button>
-          <button class="it" data-tool="polygon" title="Polygon (G)" aria-label="Polygon"><svg><use href="#i-polygon"></use></svg></button>
-          <button class="it" data-tool="star" title="Star (S)" aria-label="Star"><svg><use href="#i-star"></use></svg></button>
-          <div class="it-sep"></div>
-          <button class="it" data-tool="line" title="Line (L)" aria-label="Line"><svg><use href="#i-line"></use></svg></button>
-          <button class="it" data-tool="text" title="Text (T)" aria-label="Text"><svg><use href="#i-text"></use></svg></button>
-        </div>
-
-        <div id="lpanel">
-          <div class="ps">
+          <button class="it" id="shape-popup-btn" type="button" title="Shapes (R)" aria-label="Shape presets"><svg><use href="#i-shapes"></use></svg></button>
+          <div class="shape-popover" id="shape-popover" hidden>
             <div class="ph">Shape Preset</div>
             <div class="shapes-grid">
+              <button class="shp" type="button" data-sh="roundsquare" title="Rounded square"><svg><use href="#i-roundsquare"></use></svg></button>
+              <button class="shp" type="button" data-sh="oval" title="Oval / Ellipse"><svg><use href="#i-oval"></use></svg></button>
               <button class="shp" type="button" data-sh="roundrect" title="Rounded rectangle"><svg><use href="#i-roundrect"></use></svg></button>
               <button class="shp" type="button" data-sh="triangle" title="Triangle"><svg><use href="#i-triangle"></use></svg></button>
               <button class="shp" type="button" data-sh="diamond" title="Diamond"><svg><use href="#i-diamond"></use></svg></button>
@@ -118,7 +126,12 @@
               <span class="rv" id="vv-sides">6</span>
             </div>
           </div>
+          <div class="it-sep"></div>
+          <button class="it" data-tool="line" title="Line (L)" aria-label="Line"><svg><use href="#i-line"></use></svg></button>
+          <button class="it" data-tool="text" title="Text (T)" aria-label="Text"><svg><use href="#i-text"></use></svg></button>
+        </div>
 
+        <div id="lpanel">
           <div class="ps layers-panel">
             <div class="layers-header">
               <div class="ph">Layers</div>
@@ -131,6 +144,104 @@
             </div>
             <div class="layer-list-wrap">
               <div class="node-list" id="layer-list"></div>
+            </div>
+          </div>
+
+          <div id="rpanel">
+            <div class="ps">
+              <div class="ph">3D Live <span class="live-badge">REALTIME</span></div>
+              <button class="btn primary" id="btn-3d-reset" type="button">Reset Camera</button>
+              <div class="row">
+                <span class="rl">Draw 3D</span>
+                <select id="d3-stroke-mode">
+                  <option value="flat">Flat Extrude</option>
+                  <option value="tube">Rounded Tube</option>
+                </select>
+              </div>
+              <div class="row">
+                <span class="rl">Display</span>
+                <select id="d3-view-mode">
+                  <option value="solid" data-d3-view="solid">Solid</option>
+                  <option value="solid-lines" data-d3-view="solid-lines">Solid with Lines</option>
+                  <option value="wireframe" data-d3-view="wireframe">Wireframe</option>
+                  <option value="textured" data-d3-view="textured">Textured</option>
+                </select>
+              </div>
+              <div class="row"><span class="rl">Profile</span>
+                <select id="d3-profile">
+                  <option value="game" selected>Game Low Poly</option>
+                  <option value="slab">Flat Slab</option>
+                  <option value="rounded">Rounded Solid</option>
+                  <option value="capsule">Capsule / Pill</option>
+                  <option value="tube">Rounded Tube</option>
+                  <option value="inflated">Inflated / Soft</option>
+                  <option value="outline">Outline Logo</option>
+                </select>
+              </div>
+              <div class="row"><span class="rl">Depth</span><input type="range" id="d3-depth" min="1" max="300" value="60" title="Extrusion depth — for strokes/tubes this sets the 3D tube thickness" /><span class="rv" id="vv-depth">60</span></div>
+              <div class="row"><span class="rl">Bevel</span><input type="range" id="d3-bevel" min="0" max="40" value="0" title="Chamfer the silhouette edges (corners of the shape outline)" /><span class="rv" id="vv-bevel">0</span></div>
+              <div class="row"><span class="rl">End Round</span><input type="range" id="d3-round" min="0" max="100" value="0" title="Roundness of front/back caps — 100% = full capsule ends" /><span class="rv" id="vv-round">0</span></div>
+              <div class="row"><span class="rl">BvlSeg</span><input type="range" id="d3-bseg" min="1" max="8" value="1" /><span class="rv" id="vv-bseg">1</span></div>
+              <div class="row"><span class="rl">CurveSeg</span><input type="range" id="d3-cseg" min="3" max="32" value="6" /><span class="rv" id="vv-cseg">6</span></div>
+              <div class="row"><span class="rl">Material</span>
+                <select id="d3-mat">
+                  <option value="flat">Flat Color</option>
+                  <option value="phong">Glossy</option>
+                  <option value="toon">Toon Shade</option>
+                  <option value="standard">PBR Metal</option>
+                  <option value="wireframe">Wireframe</option>
+                  <option value="glass">Glass</option>
+                </select>
+              </div>
+              <div class="row"><span class="rl">Shininess</span><input type="range" id="d3-shine" min="0" max="300" value="100" /><span class="rv" id="vv-shine">100</span></div>
+              <div class="row"><span class="rl">Light</span><input type="range" id="d3-light" min="0" max="200" value="100" /><span class="rv" id="vv-light">100</span></div>
+            </div>
+
+            <div class="ps">
+              <div class="ph">Fill &amp; Stroke</div>
+              <div class="color-stack">
+                <div class="cs-swatches">
+                  <button class="cs-bg" id="cs-bg" style="background:#ffffff" title="Stroke color"></button>
+                  <button class="cs-fg" id="cs-fg" style="background:#00e5ff" title="Fill color"></button>
+                </div>
+                <button class="btn color-open" id="color-open">Color Picker</button>
+                <input type="color" id="fill-picker" value="#00e5ff" />
+                <input type="color" id="stroke-picker" value="#ffffff" />
+              </div>
+              <div class="color-popover" id="color-popover" hidden>
+                <div class="color-tabs">
+                  <button class="mini-tab on" data-color-target="fill">Fill</button>
+                  <button class="mini-tab" data-color-target="stroke">Stroke</button>
+                </div>
+                <canvas id="color-rect" width="180" height="112"></canvas>
+                <input type="range" id="color-hue" min="0" max="360" value="186" />
+                <div class="color-fields">
+                  <input class="prop-in" id="color-hex" value="#00e5ff" maxlength="7" />
+                  <button class="btn" id="color-none">None</button>
+                </div>
+              </div>
+              <div class="pal" id="palette"></div>
+              <div class="row">
+                <span class="rl">Stroke</span>
+                <span class="rv" id="vv-sw">2</span>
+                <input type="range" id="sl-sw" min="0" max="20" value="2" style="width:60px" />
+              </div>
+              <div class="row">
+                <span class="rl">Opacity</span>
+                <input type="range" id="sl-op" min="0" max="100" value="100" />
+                <span class="rv" id="vv-op">100</span>
+              </div>
+            </div>
+
+            <div class="ps">
+              <div class="ph">Path Ops</div>
+              <button class="btn" id="op-flatten">Flatten to Path</button>
+              <button class="btn" id="op-reverse">Reverse Path</button>
+              <button class="btn" id="op-bool">Boolean Union</button>
+              <button class="btn" id="op-subtract">Boolean Subtract</button>
+              <button class="btn" id="op-intersect">Boolean Intersect</button>
+              <button class="btn" id="op-xor">Boolean Xor</button>
+              <button class="btn" id="op-close">Close Path</button>
             </div>
           </div>
         </div>
@@ -178,126 +289,6 @@
             <div class="zoom-hud">
               <button class="zb fit-label" id="zoom-fit-3d" aria-label="Fit 3D view"><svg><use href="#i-fit"></use></svg><span>Fit</span></button>
             </div>
-          </div>
-        </div>
-
-        <div id="rpanel">
-          <div class="ps">
-            <div class="ph">Transform</div>
-            <div class="prop-grid">
-              <div><div class="prop-label">X</div><input class="prop-in" id="prop-x" type="number" value="0" /></div>
-              <div><div class="prop-label">Y</div><input class="prop-in" id="prop-y" type="number" value="0" /></div>
-              <div><div class="prop-label">W</div><input class="prop-in" id="prop-w" type="number" value="100" /></div>
-              <div><div class="prop-label">H</div><input class="prop-in" id="prop-h" type="number" value="100" /></div>
-              <div><div class="prop-label">Rotate°</div><input class="prop-in" id="prop-r" type="number" value="0" /></div>
-              <div><div class="prop-label">Scale</div><input class="prop-in" id="prop-s" type="number" value="1" step="0.1" /></div>
-            </div>
-            <button class="btn" id="prop-apply">Apply Transform</button>
-          </div>
-
-          <div class="ps">
-            <div class="ph">3D Live <span class="live-badge">REALTIME</span></div>
-            <button class="btn primary" id="btn-3d-reset" type="button">Reset Camera</button>
-            <div class="row">
-              <span class="rl">Draw 3D</span>
-              <select id="d3-stroke-mode">
-                <option value="flat">Flat Extrude</option>
-                <option value="tube">Rounded Tube</option>
-              </select>
-            </div>
-            <div class="row">
-              <span class="rl">Display</span>
-              <select id="d3-view-mode">
-                <option value="solid" data-d3-view="solid">Solid</option>
-                <option value="solid-lines" data-d3-view="solid-lines">Solid with Lines</option>
-                <option value="wireframe" data-d3-view="wireframe">Wireframe</option>
-                <option value="textured" data-d3-view="textured">Textured</option>
-              </select>
-            </div>
-            <div class="row"><span class="rl">Profile</span>
-              <select id="d3-profile">
-                <option value="game" selected>Game Low Poly</option>
-                <option value="slab">Flat Slab</option>
-                <option value="rounded">Rounded Solid</option>
-                <option value="capsule">Capsule / Pill</option>
-                <option value="tube">Rounded Tube</option>
-                <option value="inflated">Inflated / Soft</option>
-                <option value="outline">Outline Logo</option>
-              </select>
-            </div>
-            <div class="row"><span class="rl">Depth</span><input type="range" id="d3-depth" min="1" max="300" value="60" title="Extrusion depth — for strokes/tubes this sets the 3D tube thickness" /><span class="rv" id="vv-depth">60</span></div>
-            <div class="row"><span class="rl">Bevel</span><input type="range" id="d3-bevel" min="0" max="40" value="0" title="Chamfer the silhouette edges (corners of the shape outline)" /><span class="rv" id="vv-bevel">0</span></div>
-            <div class="row"><span class="rl">End Round</span><input type="range" id="d3-round" min="0" max="100" value="0" title="Roundness of front/back caps — 100% = full capsule ends" /><span class="rv" id="vv-round">0</span></div>
-            <div class="row"><span class="rl">BvlSeg</span><input type="range" id="d3-bseg" min="1" max="8" value="1" /><span class="rv" id="vv-bseg">1</span></div>
-            <div class="row"><span class="rl">CurveSeg</span><input type="range" id="d3-cseg" min="3" max="32" value="6" /><span class="rv" id="vv-cseg">6</span></div>
-            <div class="row"><span class="rl">Material</span>
-              <select id="d3-mat">
-                <option value="flat">Flat Color</option>
-                <option value="phong">Glossy</option>
-                <option value="toon">Toon Shade</option>
-                <option value="standard">PBR Metal</option>
-                <option value="wireframe">Wireframe</option>
-                <option value="glass">Glass</option>
-              </select>
-            </div>
-            <div class="row"><span class="rl">Shininess</span><input type="range" id="d3-shine" min="0" max="300" value="100" /><span class="rv" id="vv-shine">100</span></div>
-            <div class="row"><span class="rl">Light</span><input type="range" id="d3-light" min="0" max="200" value="100" /><span class="rv" id="vv-light">100</span></div>
-          </div>
-
-          <div class="ps">
-            <div class="ph">Fill &amp; Stroke</div>
-            <div class="color-stack">
-              <div class="cs-swatches">
-                <button class="cs-bg" id="cs-bg" style="background:#ffffff" title="Stroke color"></button>
-                <button class="cs-fg" id="cs-fg" style="background:#00e5ff" title="Fill color"></button>
-              </div>
-              <button class="btn color-open" id="color-open">Color Picker</button>
-              <input type="color" id="fill-picker" value="#00e5ff" />
-              <input type="color" id="stroke-picker" value="#ffffff" />
-            </div>
-            <div class="color-popover" id="color-popover" hidden>
-              <div class="color-tabs">
-                <button class="mini-tab on" data-color-target="fill">Fill</button>
-                <button class="mini-tab" data-color-target="stroke">Stroke</button>
-              </div>
-              <canvas id="color-rect" width="180" height="112"></canvas>
-              <input type="range" id="color-hue" min="0" max="360" value="186" />
-              <div class="color-fields">
-                <input class="prop-in" id="color-hex" value="#00e5ff" maxlength="7" />
-                <button class="btn" id="color-none">None</button>
-              </div>
-            </div>
-            <div class="pal" id="palette"></div>
-            <div class="row">
-              <span class="rl">Stroke</span>
-              <span class="rv" id="vv-sw">2</span>
-              <input type="range" id="sl-sw" min="0" max="20" value="2" style="width:60px" />
-            </div>
-            <div class="row">
-              <span class="rl">Opacity</span>
-              <input type="range" id="sl-op" min="0" max="100" value="100" />
-              <span class="rv" id="vv-op">100</span>
-            </div>
-          </div>
-
-          <div class="ps">
-            <div class="ph">Align</div>
-            <div class="align-grid">
-              <button class="btn" id="al-l">L</button>
-              <button class="btn" id="al-cx">CX</button>
-              <button class="btn" id="al-r">R</button>
-              <button class="btn" id="al-t">T</button>
-              <button class="btn" id="al-cy">CY</button>
-              <button class="btn" id="al-b">B</button>
-            </div>
-          </div>
-
-          <div class="ps">
-            <div class="ph">Path Ops</div>
-            <button class="btn" id="op-flatten">Flatten to Path</button>
-            <button class="btn" id="op-reverse">Reverse Path</button>
-            <button class="btn" id="op-bool">Boolean Union</button>
-            <button class="btn" id="op-close">Close Path</button>
           </div>
         </div>
       </div>

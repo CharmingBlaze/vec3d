@@ -22,7 +22,6 @@ export function initSceneGraph() {
     highlightSelectedFromScene();
     updateStatus();
   });
-  scene.on(SceneEvents.TRANSFORM, live3D);
   scene.on(SceneEvents.STYLE, live3D);
   scene.on(SceneEvents.HISTORY, () => {
     refreshLayers();

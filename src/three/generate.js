@@ -91,9 +91,12 @@ export function rebuild3D(opts = {}) {
     if (tubeGeometry) {
       const mesh = new THREE.Mesh(tubeGeometry, getThreeMat(fillCol, d3.mat, d3.shine));
       mesh.name = `${o.type || 'object'}_${o.id || meshes3d.length + 1}`;
+      mesh.userData.sourceObjectId = o.id;
       mesh.userData.sourceName = mesh.name;
       mesh.userData.fillColor = fillCol;
-      mesh.position.z = 0;
+      mesh.position.set(0, 0, 0);
+      mesh.rotation.set(0, 0, 0);
+      mesh.scale.set(1, 1, 1);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       three.group.add(mesh);
@@ -145,9 +148,12 @@ export function rebuild3D(opts = {}) {
 
       const mesh = new THREE.Mesh(geo, getThreeMat(fillCol, d3.mat, d3.shine));
       mesh.name = `${o.type || 'object'}_${o.id || meshes3d.length + 1}`;
+      mesh.userData.sourceObjectId = o.id;
       mesh.userData.sourceName = mesh.name;
       mesh.userData.fillColor = fillCol;
-      mesh.position.z = centered ? 0 : -d3.depth / 2;
+      mesh.position.set(0, 0, centered ? 0 : -d3.depth / 2);
+      mesh.rotation.set(0, 0, 0);
+      mesh.scale.set(1, 1, 1);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       three.group.add(mesh);

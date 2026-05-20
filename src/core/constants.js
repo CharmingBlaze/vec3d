@@ -14,12 +14,9 @@ export const TOOL_SHORTCUTS = {
   o: 'poly',
   f: 'pencil',
   b: 'tube',
-  r: 'rect',
-  e: 'ellipse',
-  g: 'polygon',
-  s: 'star',
+  r: 'shape',
   l: 'line',
   t: 'text',
 };
 
-export const DRAW_TOOLS = ['rect', 'ellipse', 'polygon', 'star', 'line', 'shape'];
+export const DRAW_TOOLS = ['line', 'shape'];

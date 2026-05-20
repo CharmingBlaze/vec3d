@@ -89,6 +89,21 @@ export function moveObjects(ids, dx, dy) {
   ctx.scene?.notifyTransform(ids);
 }
 
+export function flipObjects(ids, axis) {
+  const changed = [];
+  ids.forEach((id) => {
+    const o = getObj(id);
+    if (!o?.el || o.locked || o.visible === false) return;
+    const tf = ensureObjTransform(o);
+    if (axis === 'x') tf.sx *= -1;
+    if (axis === 'y') tf.sy *= -1;
+    writeTransformToEl(o.el, tf);
+    changed.push(id);
+  });
+  if (changed.length) ctx.scene?.notifyTransform(changed);
+  return changed.length;
+}
+
 export function nudgeObjects(ids, dx, dy) {
   moveObjects(ids, dx, dy);
 }

@@ -5,7 +5,8 @@ import { svgEl } from '../svg/elements.js';
 import { svgPoint, setZoom, applyTransform } from '../svg/coordinates.js';
 import { getEditorBBox } from '../svg/geometry.js';
 import { addObject } from '../editor/objects.js';
-import { scheduleRealtime3D, flushRealtime3D } from '../three/realtime.js';
+import { syncSelectTool3D, finishSelectTool3D } from '../three/transform-sync.js';
+import { scheduleRealtime3D } from '../three/realtime.js';
 import { saveHistory } from '../editor/history.js';
 import { moveObjects, startMoveDrag, applyRotateDrag, applyScaleDrag } from '../svg/transform.js';
 import { deselectAll, selectObj, updateProps } from '../editor/selection.js';
@@ -34,6 +35,9 @@ export function initCanvasEvents() {
     if (ctx.state.tool === 'pen') finishPen(true);
     if (ctx.state.tool === 'poly') finishPoly(true);
   });
+
+  window.addEventListener('mousemove', onWindowMouseMove);
+  window.addEventListener('mouseup', onWindowMouseUp);
 
   mainSvg.addEventListener(
     'wheel',
@@ -142,6 +146,16 @@ function pointInSelection(p) {
   });
 }
 
+function onWindowMouseMove(e) {
+  if (!ctx.interaction.isDragging && !ctx.interaction.panStart) return;
+  onMouseMove(e);
+}
+
+function onWindowMouseUp(e) {
+  if (!ctx.interaction.isDragging && !ctx.interaction.panStart) return;
+  onMouseUp(e);
+}
+
 function onMouseMove(e) {
   const { state, dom, interaction } = ctx;
   const p = svgPoint(e);
@@ -190,7 +204,7 @@ function onMouseMove(e) {
       state.selDragOffset = p;
       showHandles();
       updateProps();
-      scheduleRealtime3D();
+      syncSelectTool3D(state.selected, { dx, dy });
     }
     return;
   }
@@ -204,7 +218,7 @@ function onMouseMove(e) {
     }
     showHandles();
     updateProps();
-    scheduleRealtime3D();
+    syncSelectTool3D([o.id], { transform: true });
     return;
   }
   if (interaction.dragType === 'node' && state.draggingHandle?.type === 'node') {
@@ -275,7 +289,7 @@ function onMouseUp(e) {
     interaction.dragType === 'node'
   ) {
     saveHistory();
-    flushRealtime3D();
+    finishSelectTool3D();
   }
 
   state.draggingHandle = null;

@@ -28,12 +28,12 @@ export function onObjMouseDown(e) {
   }
   if (state.tool === 'node') showNodeHandles();
   else showHandles();
-  startMoveDrag(svgPoint(e));
+  if (state.tool === 'select') startMoveDrag(svgPoint(e));
 }
 
 export function onMoveSurfaceDown(e) {
   e.stopPropagation();
-  if (!ctx.state.selected.length) return;
+  if (ctx.state.tool !== 'select' || !ctx.state.selected.length) return;
   startMoveDrag(svgPoint(e));
 }
 

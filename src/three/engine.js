@@ -16,6 +16,15 @@ export function renderThreeFrame() {
   }
 }
 
+export function setThreeBackground(color) {
+  const { three, state } = ctx;
+  state.bg3d = color;
+  if (three.renderer) {
+    three.renderer.setClearColor(color, 1);
+    renderThreeFrame();
+  }
+}
+
 export function initThree() {
   const { three, dom, state } = ctx;
   if (three.renderer) return;
@@ -25,7 +34,7 @@ export function initThree() {
   three.renderer.setPixelRatio(
     Math.min(window.devicePixelRatio, THREE_CONFIG.maxPixelRatio),
   );
-  three.renderer.setClearColor(THREE_CONFIG.clearColor, 1);
+  three.renderer.setClearColor(state.bg3d || THREE_CONFIG.clearColor, 1);
   three.renderer.shadowMap.enabled = true;
 
   three.scene = new THREE.Scene();

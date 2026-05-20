@@ -9,8 +9,6 @@ import { getObj } from '../core/context.js';
 import { deleteSelected } from '../editor/objects.js';
 import { finishPen } from '../tools/pen.js';
 import { finishPoly } from '../tools/poly.js';
-import { getEditorBBox } from '../svg/geometry.js';
-import { moveObjects, applyPanelTransform } from '../svg/transform.js';
 import { scheduleRealtime3D, flushRealtime3D } from '../three/realtime.js';
 import {
   applyD3ToSelection,
@@ -28,6 +26,11 @@ async function reset3DViewLazy() {
 async function renderThreeFrameLazy() {
   const { renderThreeFrame } = await import('../three/engine.js');
   renderThreeFrame();
+}
+
+async function setThreeBackgroundLazy(color) {
+  const { setThreeBackground } = await import('../three/engine.js');
+  setThreeBackground(color);
 }
 
 async function updateSceneLightsLazy() {
@@ -76,6 +79,7 @@ export function initControls() {
     if (state.selected.length) updateSelected('stroke', e.target.value);
   };
   initColorPopup();
+  initCanvasControls();
 
   bindSlider('slSw', 'vvSw', 'strokeW', (v) => {
     if (state.selected.length) {
@@ -118,34 +122,6 @@ export function initControls() {
   };
   if (dom.zoomFit3d) dom.zoomFit3d.onclick = () => reset3DViewLazy();
 
-  const applyLivePanel = () => {
-    state.selected.forEach((id) => {
-      const o = getObj(id);
-      if (!o) return;
-      applyPanelTransform(o, {
-        x: +dom.propX.value,
-        y: +dom.propY.value,
-        w: +dom.propW.value,
-        h: +dom.propH.value,
-        rot: +dom.propR.value,
-        scale: +dom.propS.value,
-      });
-    });
-    showHandles();
-  };
-
-  ['propX', 'propY', 'propW', 'propH', 'propR', 'propS'].forEach((key) => {
-    const el = dom[key];
-    if (el) el.addEventListener('input', applyLivePanel);
-  });
-
-  dom.propApply.onclick = () => {
-    saveHistory();
-    flushRealtime3D();
-  };
-
-  initAlignButtons();
-
   dom.lnDel.onclick = () => deleteSelected();
   dom.lnUp.onclick = () => {
     ctx.scene.moveUp(ctx.state.selected);
@@ -156,6 +132,32 @@ export function initControls() {
     saveHistory();
   };
 
+}
+
+function syncViewBgDot(picker, dot) {
+  if (picker && dot) dot.style.background = picker.value;
+}
+
+function initCanvasControls() {
+  const { state, dom } = ctx;
+  if (dom.bg2dPicker) {
+    dom.bg2dPicker.value = state.bg2d;
+    if (dom.canvasBg) dom.canvasBg.setAttribute('fill', state.bg2d);
+    syncViewBgDot(dom.bg2dPicker, dom.bg2dDot);
+    dom.bg2dPicker.oninput = (e) => {
+      state.bg2d = e.target.value;
+      if (dom.canvasBg) dom.canvasBg.setAttribute('fill', state.bg2d);
+      syncViewBgDot(dom.bg2dPicker, dom.bg2dDot);
+    };
+  }
+  if (dom.bg3dPicker) {
+    dom.bg3dPicker.value = state.bg3d;
+    syncViewBgDot(dom.bg3dPicker, dom.bg3dDot);
+    dom.bg3dPicker.oninput = (e) => {
+      syncViewBgDot(dom.bg3dPicker, dom.bg3dDot);
+      setThreeBackgroundLazy(e.target.value);
+    };
+  }
 }
 
 function initPanelTabs() {
@@ -382,6 +384,8 @@ export function initToolbar() {
       if (state.penPoints.length) finishPen(true);
       if (state.polyPoints.length) finishPoly(true);
       document.querySelectorAll('[data-tool]').forEach((x) => x.classList.remove('on'));
+      document.querySelectorAll('[data-sh]').forEach((x) => x.classList.remove('on'));
+      dom.shapePopupBtn?.classList.remove('on');
       b.classList.add('on');
       dom.sbTool.textContent = `Tool: ${state.tool}`;
       if (state.tool === 'node' && state.selected.length) showNodeHandles();
@@ -393,12 +397,28 @@ export function initToolbar() {
     b.onclick = () => {
       state.shape = b.dataset.sh;
       state.tool = 'shape';
+      if (dom.shapePopover) dom.shapePopover.hidden = true;
+      if (dom.shapePopupBtn) dom.shapePopupBtn.classList.remove('on');
       document.querySelectorAll('[data-tool]').forEach((x) => x.classList.remove('on'));
       document.querySelectorAll('[data-sh]').forEach((x) => x.classList.remove('on'));
       b.classList.add('on');
       dom.sbTool.textContent = `Tool: shape (${state.shape})`;
     };
   });
+
+  if (dom.shapePopupBtn && dom.shapePopover) {
+    dom.shapePopupBtn.onclick = (e) => {
+      e.stopPropagation();
+      const nextHidden = !dom.shapePopover.hidden ? true : false;
+      dom.shapePopover.hidden = nextHidden;
+      dom.shapePopupBtn.classList.toggle('on', !nextHidden);
+    };
+    dom.shapePopover.addEventListener('pointerdown', (e) => e.stopPropagation());
+    document.addEventListener('pointerdown', () => {
+      dom.shapePopover.hidden = true;
+      dom.shapePopupBtn.classList.remove('on');
+    });
+  }
 }
 
 /** Wire every control in the 3D Live panel */
@@ -512,49 +532,4 @@ function init3DPanelControls() {
   }
 
   if (dom.btn3dReset) dom.btn3dReset.onclick = () => reset3DRotationLazy();
-}
-
-function initAlignButtons() {
-  const { state, dom } = ctx;
-  const alignMap = {
-    alL: 'left',
-    alR: 'right',
-    alT: 'top',
-    alB: 'bottom',
-    alCx: 'centerX',
-    alCy: 'centerY',
-  };
-  Object.entries(alignMap).forEach(([key, mode]) => {
-    const btn = dom[key];
-    if (!btn) return;
-    btn.onclick = () => {
-      const items = state.selected.map((id) => getObj(id)).filter(Boolean);
-      if (items.length < 2) return;
-      const boxes = items.map((o) => ({ o, bb: getEditorBBox(o.el) }));
-      let minX = Infinity;
-      let minY = Infinity;
-      let maxX = -Infinity;
-      let maxY = -Infinity;
-      boxes.forEach(({ bb }) => {
-        minX = Math.min(minX, bb.x);
-        minY = Math.min(minY, bb.y);
-        maxX = Math.max(maxX, bb.x + bb.width);
-        maxY = Math.max(maxY, bb.y + bb.height);
-      });
-      boxes.forEach(({ o, bb }) => {
-        let dx = 0;
-        let dy = 0;
-        if (mode === 'left') dx = minX - bb.x;
-        if (mode === 'right') dx = maxX - (bb.x + bb.width);
-        if (mode === 'top') dy = minY - bb.y;
-        if (mode === 'bottom') dy = maxY - (bb.y + bb.height);
-        if (mode === 'centerX') dx = (minX + maxX) / 2 - (bb.x + bb.width / 2);
-        if (mode === 'centerY') dy = (minY + maxY) / 2 - (bb.y + bb.height / 2);
-        if (dx || dy) moveObjects([o.id], dx, dy);
-      });
-      showHandles();
-      saveHistory();
-      flushRealtime3D();
-    };
-  });
 }

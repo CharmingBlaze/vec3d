@@ -71,8 +71,19 @@ export function initKeyboard() {
     if (!e.ctrlKey) {
       const tool = TOOL_SHORTCUTS[e.key];
       if (tool) {
-        const b = document.querySelector(`[data-tool="${tool}"]`);
-        if (b) b.click();
+        if (tool === 'shape') {
+          state.tool = 'shape';
+          if (state.penPoints.length) finishPen(true);
+          if (state.polyPoints.length) finishPoly(true);
+          document.querySelectorAll('[data-tool]').forEach((x) => x.classList.remove('on'));
+          dom.shapePopupBtn?.classList.add('on');
+          dom.sbTool.textContent = `Tool: shape (${state.shape})`;
+          if (state.tool !== 'node') showHandles();
+        } else {
+          dom.shapePopupBtn?.classList.remove('on');
+          const b = document.querySelector(`[data-tool="${tool}"]`);
+          if (b) b.click();
+        }
       }
       if (e.key === '+') setZoom(state.zoom * 1.25);
       if (e.key === '-') setZoom(state.zoom * 0.8);
