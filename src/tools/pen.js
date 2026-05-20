@@ -60,7 +60,7 @@ export function updatePenPreview() {
   dom.previewLayer.querySelectorAll('.pen-anchor').forEach((el) => el.remove());
   state.penPoints.forEach((pt) => {
     dom.previewLayer.appendChild(
-      svgEl('circle', { cx: pt.x, cy: pt.y, r: 3, fill: '#00e5ff', class: 'pen-anchor' }),
+      svgEl('circle', { cx: pt.x, cy: pt.y, r: 3, fill: '#818cf8', class: 'pen-anchor' }),
     );
     if (pt.c2x !== undefined) {
       if (pt.c1x !== undefined) {

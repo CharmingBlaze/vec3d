@@ -28,6 +28,7 @@ export function createState() {
     tubePts: [],
     tubeEl: null,
     strokeMeshMode: 'flat',
+    documentD3: null,
     shapeStart: null,
     shapePreview: null,
     selDragStart: null,

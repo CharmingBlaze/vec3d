@@ -1,5 +1,9 @@
 node_modules/
 dist/
+release-build/
+release/win-unpacked/
+release/Vec3D-win32-x64/
+release/builder-debug.yml
 .DS_Store
 *.log
 .env

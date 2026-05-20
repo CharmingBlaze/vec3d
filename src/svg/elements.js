@@ -23,7 +23,7 @@ export function ensureSelectionGlow() {
     dx: '0',
     dy: '0',
     stdDeviation: '3',
-    'flood-color': '#00e5ff',
+    'flood-color': '#818cf8',
     'flood-opacity': '0.8',
   });
   f.appendChild(fe);

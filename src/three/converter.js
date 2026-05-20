@@ -9,17 +9,19 @@ const svgLoader = new SVGLoader();
 const font = new FontLoader().parse(helvetikerRegular);
 
 function detailSegments() {
-  const raw = +(ctx.dom?.d3Cseg?.value || 8);
-  const profile = ctx.dom?.d3Profile?.value;
-  const endRound = +(ctx.dom?.d3Round?.value || 0);
+  const build = ctx.d3BuildContext;
+  const raw = build?.cseg ?? +(ctx.dom?.d3Cseg?.value || 8);
+  const profile = build?.profile ?? ctx.dom?.d3Profile?.value;
+  const endRound = build?.round ?? +(ctx.dom?.d3Round?.value || 0);
   let max = profile === 'game' ? 6 : 32;
   if (endRound > 0 || profile === 'capsule' || profile === 'tube') max = Math.max(max, 24);
   return Math.max(3, Math.min(max, raw));
 }
 
 function simplificationTolerance() {
-  const profile = ctx.dom?.d3Profile?.value;
-  const endRound = +(ctx.dom?.d3Round?.value || 0);
+  const build = ctx.d3BuildContext;
+  const profile = build?.profile ?? ctx.dom?.d3Profile?.value;
+  const endRound = build?.round ?? +(ctx.dom?.d3Round?.value || 0);
   if (endRound > 0 || profile === 'capsule' || profile === 'tube') return 1;
   return profile === 'game' ? 4 : 1.5;
 }

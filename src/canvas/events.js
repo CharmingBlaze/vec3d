@@ -68,7 +68,7 @@ function onCanvasDown(e) {
     state.pencilEl = svgEl('path', {
       d: `M ${p.x} ${p.y}`,
       fill: 'none',
-      stroke: isTube ? '#c77dff' : '#00e5ff',
+      stroke: isTube ? '#a855f7' : '#818cf8',
       'stroke-width': Math.max(2, state.strokeW),
       'stroke-linecap': 'round',
       'stroke-linejoin': 'round',

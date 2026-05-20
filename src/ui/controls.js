@@ -11,12 +11,44 @@ import { finishPen } from '../tools/pen.js';
 import { finishPoly } from '../tools/poly.js';
 import { getEditorBBox } from '../svg/geometry.js';
 import { moveObjects, applyPanelTransform } from '../svg/transform.js';
-import { reset3DView } from '../three/camera.js';
 import { scheduleRealtime3D, flushRealtime3D } from '../three/realtime.js';
-import { updateSceneLights } from '../three/materials.js';
-import { renderThreeFrame } from '../three/engine.js';
-import { reset3DRotation } from '../three/view.js';
-import { refresh3DAppearance, setViewMode3d } from '../three/viewMode.js';
+import {
+  applyD3ToSelection,
+  applyD3ToDom,
+  readD3FromDom,
+  profilePresetPatch,
+  getObjectD3,
+} from '../core/d3-settings.js';
+
+async function reset3DViewLazy() {
+  const { reset3DView } = await import('../three/camera.js');
+  reset3DView();
+}
+
+async function renderThreeFrameLazy() {
+  const { renderThreeFrame } = await import('../three/engine.js');
+  renderThreeFrame();
+}
+
+async function updateSceneLightsLazy() {
+  const { updateSceneLights } = await import('../three/materials.js');
+  updateSceneLights();
+}
+
+async function refresh3DAppearanceLazy() {
+  const { refresh3DAppearance } = await import('../three/viewMode.js');
+  return refresh3DAppearance();
+}
+
+async function setViewMode3dLazy(mode) {
+  const { setViewMode3d } = await import('../three/viewMode.js');
+  setViewMode3d(mode);
+}
+
+async function reset3DRotationLazy() {
+  const { reset3DRotation } = await import('../three/view.js');
+  reset3DRotation();
+}
 
 export function initControls() {
   const { state, dom } = ctx;
@@ -36,17 +68,24 @@ export function initControls() {
   dom.fillPicker.oninput = (e) => {
     state.fill = e.target.value;
     dom.csFg.style.background = e.target.value;
-    updateSelected('fill', e.target.value);
+    if (state.selected.length) updateSelected('fill', e.target.value);
   };
   dom.strokePicker.oninput = (e) => {
     state.stroke = e.target.value;
     dom.csBg.style.background = e.target.value;
-    updateSelected('stroke', e.target.value);
+    if (state.selected.length) updateSelected('stroke', e.target.value);
   };
   initColorPopup();
 
-  bindSlider('slSw', 'vvSw', 'strokeW', (v) => updateSelected('strokeW', v));
-  bindSlider('slOp', 'vvOp', 'opacity', (v) => updateSelected('opacity', v / 100));
+  bindSlider('slSw', 'vvSw', 'strokeW', (v) => {
+    if (state.selected.length) {
+      updateSelected('strokeW', v);
+      scheduleRealtime3D();
+    }
+  });
+  bindSlider('slOp', 'vvOp', 'opacity', (v) => {
+    if (state.selected.length) updateSelected('opacity', v / 100);
+  });
   dom.slSides.oninput = (e) => {
     state.sides = +e.target.value;
     dom.vvSides.textContent = e.target.value;
@@ -72,12 +111,12 @@ export function initControls() {
   dom.zoomOutBtn.onclick = () => setZoom(state.zoom * 0.8);
   dom.zoomFit.onclick = () => {
     if (ctx.state.activeScreen === '3d') {
-      reset3DView();
+      reset3DViewLazy();
       return;
     }
     fit2DView();
   };
-  if (dom.zoomFit3d) dom.zoomFit3d.onclick = () => reset3DView();
+  if (dom.zoomFit3d) dom.zoomFit3d.onclick = () => reset3DViewLazy();
 
   const applyLivePanel = () => {
     state.selected.forEach((id) => {
@@ -366,9 +405,20 @@ export function initToolbar() {
 function init3DPanelControls() {
   const { dom, state } = ctx;
 
-  const rebuildGeometry = () => scheduleRealtime3D();
-  const rebuildOrRefresh = () => {
-    if (!refresh3DAppearance()) rebuildGeometry();
+  const commitD3 = (partial, opts = {}) => {
+    if (ctx._syncingD3Panel) return;
+    const needsRebuild = applyD3ToSelection(partial);
+    if (opts.syncPanel && state.selected.length === 1) {
+      applyD3ToDom(getObjectD3(getObj(state.selected[0])));
+    }
+    if (needsRebuild) scheduleRealtime3D();
+  };
+
+  const commitD3FromDom = () => commitD3(readD3FromDom(dom));
+
+  const rebuildOrRefreshSelected = async () => {
+    if (!state.selected.length) return;
+    if (!(await refresh3DAppearanceLazy())) scheduleRealtime3D();
   };
 
   const bindD3Slider = (id, onChange) => {
@@ -379,43 +429,56 @@ function init3DPanelControls() {
       if (vid) vid.textContent = el.value;
       onChange();
     };
+    el.onchange = () => {
+      if (state.selected.length) saveHistory();
+    };
   };
 
-  // Geometry — full mesh rebuild
-  bindD3Slider('d3Depth', rebuildGeometry);
+  bindD3Slider('d3Depth', () => commitD3({ depth: +dom.d3Depth.value }));
   bindD3Slider('d3Bevel', () => {
-    if (+dom.d3Bevel.value > 0 && +dom.d3Bseg.value < 3) {
+    const partial = { bevel: +dom.d3Bevel.value };
+    if (partial.bevel > 0 && +dom.d3Bseg.value < 3) {
+      partial.bseg = 3;
       dom.d3Bseg.value = 3;
       dom.vvBseg.textContent = '3';
     }
-    rebuildGeometry();
+    commitD3(partial);
   });
   bindD3Slider('d3Round', () => {
-    if (+dom.d3Round.value > 0 && +dom.d3Cseg.value < 12) {
+    const partial = { round: +dom.d3Round.value };
+    if (partial.round > 0 && +dom.d3Cseg.value < 12) {
+      partial.cseg = 12;
       dom.d3Cseg.value = 12;
       dom.vvCseg.textContent = '12';
     }
-    rebuildGeometry();
+    commitD3(partial);
   });
-  bindD3Slider('d3Bseg', rebuildGeometry);
-  bindD3Slider('d3Cseg', rebuildGeometry);
+  bindD3Slider('d3Bseg', () => commitD3({ bseg: +dom.d3Bseg.value }));
+  bindD3Slider('d3Cseg', () => commitD3({ cseg: +dom.d3Cseg.value }));
 
   if (dom.d3StrokeMode) {
-    dom.d3StrokeMode.value = state.strokeMeshMode;
     dom.d3StrokeMode.onchange = () => {
-      state.strokeMeshMode = dom.d3StrokeMode.value;
+      const strokeMode = dom.d3StrokeMode.value;
+      if (state.selected.length) {
+        commitD3({ strokeMode });
+        if (strokeMode === 'tube') state.strokeMeshMode = 'tube';
+      } else {
+        state.strokeMeshMode = strokeMode;
+        applyD3ToSelection({ strokeMode });
+      }
     };
   }
 
-  // Shininess — material refresh only
-  bindD3Slider('d3Shine', rebuildOrRefresh);
+  bindD3Slider('d3Shine', () => {
+    commitD3({ shine: +dom.d3Shine.value });
+    rebuildOrRefreshSelected();
+  });
 
   if (dom.d3Light) {
     dom.d3Light.oninput = () => {
       dom.vvLight.textContent = dom.d3Light.value;
-      updateSceneLights();
-      renderThreeFrame();
-      if (!ctx.meshes3d.length && state.objects.length) rebuildGeometry();
+      updateSceneLightsLazy();
+      renderThreeFrameLazy();
     };
   }
 
@@ -423,51 +486,32 @@ function init3DPanelControls() {
     dom.d3Mat.onchange = () => {
       const mat = dom.d3Mat.value;
       if (mat === 'wireframe') {
-        setViewMode3d('wireframe');
+        setViewMode3dLazy('wireframe');
         return;
       }
       if (mat !== 'flat' && (state.viewMode3d === 'solid' || state.viewMode3d === 'solid-lines')) {
-        setViewMode3d('textured');
-        return;
+        setViewMode3dLazy('textured');
       }
-      rebuildOrRefresh();
+      commitD3({ mat });
+      rebuildOrRefreshSelected();
     };
   }
 
   if (dom.d3Profile) {
     dom.d3Profile.onchange = () => {
-      const profile = dom.d3Profile.value;
-      if (profile === 'game') {
-        dom.d3Bseg.value = 1;
-        dom.vvBseg.textContent = '1';
-        dom.d3Cseg.value = Math.min(+dom.d3Cseg.value || 6, 6);
-        dom.vvCseg.textContent = dom.d3Cseg.value;
-      }
-      if (profile === 'capsule') {
-        dom.d3Round.value = 100;
-        dom.vvRound.textContent = '100';
-        dom.d3Bseg.value = Math.max(+dom.d3Bseg.value || 1, 6);
-        dom.vvBseg.textContent = dom.d3Bseg.value;
-        dom.d3Cseg.value = Math.max(+dom.d3Cseg.value || 6, 12);
-        dom.vvCseg.textContent = dom.d3Cseg.value;
-      }
-      if (profile === 'tube') {
-        state.strokeMeshMode = 'tube';
-        if (dom.d3StrokeMode) dom.d3StrokeMode.value = 'tube';
-        dom.d3Bevel.value = 0;
-        dom.vvBevel.textContent = '0';
-        dom.d3Round.value = 0;
-        dom.vvRound.textContent = '0';
-        dom.d3Cseg.value = Math.max(+dom.d3Cseg.value || 6, 16);
-        dom.vvCseg.textContent = dom.d3Cseg.value;
-        dom.d3Depth.value = Math.max(+dom.d3Depth.value || 60, 40);
-        dom.vvDepth.textContent = dom.d3Depth.value;
-      }
-      flushRealtime3D();
+      const base = state.selected.length && getObj(state.selected[0])
+        ? getObjectD3(getObj(state.selected[0]))
+        : readD3FromDom(dom);
+      const patched = profilePresetPatch(dom.d3Profile.value, base);
+      applyD3ToDom(patched);
+      if (patched.profile === 'tube') state.strokeMeshMode = 'tube';
+      const needsRebuild = applyD3ToSelection(patched);
+      if (needsRebuild) flushRealtime3D();
+      else if (state.selected.length) saveHistory();
     };
   }
 
-  if (dom.btn3dReset) dom.btn3dReset.onclick = () => reset3DRotation();
+  if (dom.btn3dReset) dom.btn3dReset.onclick = () => reset3DRotationLazy();
 }
 
 function initAlignButtons() {

@@ -12,6 +12,7 @@ import { createRoundedTubeMesh } from './tube-mesh.js';
 import { createRoundedSilhouetteGeometry } from './silhouette-tube.js';
 import { parsePath, flattenPathPoints, sampleSvgPath, isClosedLoop } from '../svg/path.js';
 import { shouldUseTubeMesh, tubeRadiusFromDepth } from '../core/tube-mode.js';
+import { getObjectD3 } from '../core/d3-settings.js';
 function disposeMesh(mesh) {
   if (!mesh) return;
   const edge = mesh.userData?.edgeLines;
@@ -60,16 +61,6 @@ export function rebuild3D(opts = {}) {
   three.group.clear();
   remove2DOverlay();
 
-  const depth = +dom.d3Depth.value;
-  const bevel = +dom.d3Bevel.value;
-  const roundness = +(dom.d3Round?.value || 0);
-  const bseg = +dom.d3Bseg.value;
-  let cseg = +dom.d3Cseg.value;
-  const profile = dom.d3Profile?.value || 'rounded';
-  const settings = profileSettings(profile, { depth, bevel, roundness, bseg });
-  if (settings.maxCurveSegments) cseg = Math.min(cseg, settings.maxCurveSegments);
-  if (settings.tubeProfile) cseg = Math.max(cseg, 12);
-
   const cx = state.canvasW / 2;
   const cy = state.canvasH / 2;
   state.sceneCenter = { cx, cy };
@@ -80,12 +71,25 @@ export function rebuild3D(opts = {}) {
   }
 
   objs.forEach((o) => {
+    const d3 = getObjectD3(o);
+    ctx.d3BuildContext = d3;
+
+    let cseg = d3.cseg;
+    const settings = profileSettings(d3.profile, {
+      depth: d3.depth,
+      bevel: d3.bevel,
+      roundness: d3.round,
+      bseg: d3.bseg,
+    });
+    if (settings.maxCurveSegments) cseg = Math.min(cseg, settings.maxCurveSegments);
+    if (settings.tubeProfile) cseg = Math.max(cseg, 12);
+
     const style = readElementStyle(o);
     const fillCol = style.fill === 'none' ? style.stroke || '#888888' : style.fill;
 
-    const tubeGeometry = buildTubeGeometryForObject(o, style, cx, cy, profile, settings, cseg, depth);
+    const tubeGeometry = buildTubeGeometryForObject(o, style, cx, cy, d3.profile, settings, cseg, d3.depth);
     if (tubeGeometry) {
-      const mesh = new THREE.Mesh(tubeGeometry, getThreeMat(fillCol));
+      const mesh = new THREE.Mesh(tubeGeometry, getThreeMat(fillCol, d3.mat, d3.shine));
       mesh.name = `${o.type || 'object'}_${o.id || meshes3d.length + 1}`;
       mesh.userData.sourceName = mesh.name;
       mesh.userData.fillColor = fillCol;
@@ -114,7 +118,7 @@ export function rebuild3D(opts = {}) {
             centered = true;
           } else {
             geo = new THREE.ExtrudeGeometry(shape, {
-              depth,
+              depth: d3.depth,
               bevelEnabled: settings.bevel > 0,
               bevelSize: settings.bevel,
               bevelThickness: settings.thickness,
@@ -125,7 +129,7 @@ export function rebuild3D(opts = {}) {
           }
         } else {
           geo = new THREE.ExtrudeGeometry(shape, {
-            depth,
+            depth: d3.depth,
             bevelEnabled: settings.bevel > 0,
             bevelSize: settings.bevel,
             bevelThickness: settings.thickness,
@@ -139,11 +143,11 @@ export function rebuild3D(opts = {}) {
         return;
       }
 
-      const mesh = new THREE.Mesh(geo, getThreeMat(fillCol));
+      const mesh = new THREE.Mesh(geo, getThreeMat(fillCol, d3.mat, d3.shine));
       mesh.name = `${o.type || 'object'}_${o.id || meshes3d.length + 1}`;
       mesh.userData.sourceName = mesh.name;
       mesh.userData.fillColor = fillCol;
-      mesh.position.z = centered ? 0 : -depth / 2;
+      mesh.position.z = centered ? 0 : -d3.depth / 2;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       three.group.add(mesh);

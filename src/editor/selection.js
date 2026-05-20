@@ -3,6 +3,7 @@ import { ensureSelectionGlow } from '../svg/elements.js';
 import { showHandles, clearHandles } from './handles.js';
 import { refreshLayers, updateStatus } from '../ui/layers.js';
 import { syncTransformPanel } from '../svg/transform.js';
+import { syncD3PanelFromObject, syncD3PanelFromDocument } from '../core/d3-settings.js';
 
 export function selectObj(id, add = false) {
   const scene = getScene();
@@ -18,6 +19,7 @@ export function selectObj(id, add = false) {
 export function deselectAll() {
   getScene().clearSelection();
   clearHandles();
+  syncD3PanelFromDocument();
   updateStatus();
 }
 
@@ -39,6 +41,10 @@ function highlightSelected() {
 
 export function updateProps() {
   const { state, dom } = ctx;
-  if (!state.selected.length) return;
+  if (!state.selected.length) {
+    syncD3PanelFromDocument();
+    return;
+  }
   syncTransformPanel(dom, getObj(state.selected[0]));
+  syncD3PanelFromObject(getObj(state.selected[0]));
 }

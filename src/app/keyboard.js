@@ -12,11 +12,10 @@ import { nudgeObjects } from '../svg/transform.js';
 import { showHandles } from '../editor/handles.js';
 import { saveHistory } from '../editor/history.js';
 import { flushRealtime3D } from '../three/realtime.js';
-import { resizeThree } from '../three/engine.js';
 
 export function toggleLeftPanel() {
   ctx.dom.app.classList.toggle('lpanel-hidden');
-  resizeThree();
+  if (ctx.three.renderer) import('../three/engine.js').then(({ resizeThree }) => resizeThree());
 }
 
 export function initKeyboard() {

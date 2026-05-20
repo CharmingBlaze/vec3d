@@ -3,7 +3,6 @@
  * All 3D modules should import from here so Vite bundles one consistent build.
  */
 export * as THREE from 'three';
-export { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 
 /** Renderer defaults used across the app */
 export const THREE_CONFIG = {

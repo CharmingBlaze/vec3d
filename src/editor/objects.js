@@ -4,6 +4,7 @@ import { saveHistory } from './history.js';
 import { clearHandles } from './handles.js';
 import { refreshLayers } from '../ui/layers.js';
 import { onObjMouseDown } from '../canvas/handlers.js';
+import { ensureObjectD3 } from '../core/d3-settings.js';
 import { flushRealtime3D } from '../three/realtime.js';
 
 export function addObject(el, type, data = {}) {
@@ -20,9 +21,10 @@ export function addObject(el, type, data = {}) {
     stroke: state.stroke,
     sw: state.strokeW,
     op: state.opacity / 100,
-    data,
+    data: { ...data, d3: data.d3 ?? undefined },
     id: el.dataset.id || undefined,
   });
+  ensureObjectD3(node);
 
   saveHistory();
   refreshLayers();

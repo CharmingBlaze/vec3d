@@ -3,15 +3,48 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "desktop": "npm run build && electron .",
+    "pack:win": "npm run build && electron-packager . Vec3D --platform=win32 --arch=x64 --out=release-build --overwrite --asar --prune=true --ignore=\"^/src($|/)\" --ignore=\"^/.git($|/)\" --ignore=\"^/scripts($|/)\" --ignore=\"^/release($|/)\" --ignore=\"^/release-build($|/)\" --ignore=\"^/vec3d_editor.html$\" --ignore=\"^/vite.config.js$\"",
+    "dist:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-win.ps1"
   },
   "dependencies": {
     "three": "^0.172.0"
   },
   "devDependencies": {
+    "@electron/packager": "^20.0.0",
+    "electron": "^42.2.0",
+    "electron-builder": "^26.8.1",
     "vite": "^6.0.7"
+  },
+  "build": {
+    "appId": "com.vec3d.editor",
+    "productName": "Vec3D",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "Vec3D-${version}-Windows-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }

@@ -3,8 +3,11 @@ import { reset3DView } from './camera.js';
 import { clear3DMeshes } from './generate.js';
 import { flushRealtime3D } from './realtime.js';
 import { initThree, resizeThree, renderThreeFrame } from './engine.js';
+import { initViewModeControls } from './viewMode.js';
 
-export function show3DView() {
+let viewModeReady = false;
+
+export async function show3DView() {
   const { dom, state } = ctx;
   state.activeScreen = '3d';
   dom.app.classList.add('mode-3d');
@@ -12,9 +15,13 @@ export function show3DView() {
   dom.carea3d.classList.add('on');
   dom.vtab3d.classList.add('on');
   dom.vtab2d.classList.remove('on');
+  if (!viewModeReady) {
+    initViewModeControls();
+    viewModeReady = true;
+  }
   initThree();
   resizeThree();
-  flushRealtime3D();
+  await flushRealtime3D({ force: true });
   reset3DView();
 }
 

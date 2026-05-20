@@ -1,9 +1,9 @@
 import { THREE } from './setup.js';
 import { ctx } from '../core/context.js';
 
-export function getThreeMat(color, matType) {
+export function getThreeMat(color, matType, shineOverride) {
   const c = new THREE.Color(color === 'none' ? '#888888' : color);
-  const shine = +ctx.dom.d3Shine.value;
+  const shine = shineOverride ?? +ctx.dom.d3Shine.value;
   const type = matType || ctx.dom.d3Mat.value;
 
   switch (type) {

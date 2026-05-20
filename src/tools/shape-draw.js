@@ -11,7 +11,7 @@ export function startShapePreview(e) {
   state.shapeStart = p;
   const attrs = {
     fill: state.fillMode === 'none' ? 'none' : 'rgba(0, 229, 255, 0.12)',
-    stroke: '#00e5ff',
+    stroke: '#818cf8',
     'stroke-width': Math.max(2, state.strokeW),
     opacity: 1,
     class: 'shape-preview guide-shape',

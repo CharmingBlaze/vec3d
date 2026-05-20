@@ -12,7 +12,7 @@
       <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l4.5-1 10-10-3.5-3.5-10 10L4 20z"/><path d="M13.5 7L17 10.5"/><circle cx="8.5" cy="15.5" r="1"/></symbol>
       <symbol id="i-poly" viewBox="0 0 24 24"><path d="M5 17l5-10 5 8 4-6"/><circle cx="5" cy="17" r="1.8"/><circle cx="10" cy="7" r="1.8"/><circle cx="15" cy="15" r="1.8"/><circle cx="19" cy="9" r="1.8"/></symbol>
       <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 17l1 3 3-1 11-11-4-4L4 15v2z"/><path d="M13.5 5.5l4 4"/></symbol>
-      <symbol id="i-tube" viewBox="0 0 24 24"><path d="M5 12a3 3 0 016 0v0a3 3 0 016 0v0a3 3 0 016 0"/><path d="M5 12h14" stroke-width="6" stroke-linecap="round"/></symbol>
+      <symbol id="i-tube" viewBox="0 0 24 24"><path d="M12 3.5c3.8 0 6.5 3.1 6.5 8.5s-2.7 8.5-6.5 8.5S5.5 17.4 5.5 12 8.2 3.5 12 3.5z"/><path d="M12 3.5v17M7 8.2h10M6 12h12M7 15.8h10"/><path d="M8.2 5.8c2.3 1.2 5.3 1.2 7.6 0M8.2 18.2c2.3-1.2 5.3-1.2 7.6 0"/></symbol>
       <symbol id="i-rect" viewBox="0 0 24 24"><rect x="5" y="6" width="14" height="12" rx="2"/></symbol>
       <symbol id="i-ellipse" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="5.5"/></symbol>
       <symbol id="i-polygon" viewBox="0 0 24 24"><path d="M12 4l8 5v6l-8 5-8-5V9l8-5z"/></symbol>
@@ -140,11 +140,11 @@
             <svg id="grid-svg" width="100%" height="100%">
               <defs>
                 <pattern id="smallgrid" width="20" height="20" patternUnits="userSpaceOnUse">
-                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,.05)" stroke-width=".5" />
+                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,.04)" stroke-width=".5" />
                 </pattern>
                 <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
                   <rect width="100" height="100" fill="url(#smallgrid)" />
-                  <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,.1)" stroke-width=".5" />
+                  <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,.08)" stroke-width=".5" />
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#grid)" />
@@ -307,7 +307,7 @@
         <span id="sb-tool">Tool: Select</span>
         <span id="sb-sel">No selection</span>
         <span id="sb-objs">Objects: 0</span>
-        <span style="margin-left:auto;color:var(--accent)">Vec3D — Realtime Vector → 3D</span>
+        <span style="margin-left:auto;color:var(--dim)">Vec3D · Realtime Vector → 3D</span>
       </div>
     </div>
     <script type="module" src="/src/main.js"></script>

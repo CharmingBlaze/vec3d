@@ -22,12 +22,13 @@ export function shouldUseTubeMesh(o, style, profile) {
   const tag = o.el?.tagName?.toLowerCase();
   if (!['path', 'line', 'polyline'].includes(tag)) return false;
 
+  const layerStrokeMode = o.data?.d3?.strokeMode;
+  if (layerStrokeMode === 'flat') return false;
+
+  if (profile === 'tube' || layerStrokeMode === 'tube') return true;
+
   const fill = style.fill;
   const strokeOnly = !fill || fill === 'none' || fill === 'transparent';
-  if (!strokeOnly) return false;
-
-  if (shouldDrawAsTube()) return true;
-
   if (strokeOnly && style.sw > 0) return true;
 
   if (tag === 'path' && style.sw > 0) {
