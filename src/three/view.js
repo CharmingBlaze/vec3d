@@ -4,17 +4,11 @@ import { clear3DMeshes } from './generate.js';
 import { flushRealtime3D } from './realtime.js';
 import { initThree, resizeThree, renderThreeFrame } from './engine.js';
 import { initViewModeControls } from './viewMode.js';
+import { setSplitFocus } from '../ui/split-view.js';
 
 let viewModeReady = false;
 
-export async function show3DView() {
-  const { dom, state } = ctx;
-  state.activeScreen = '3d';
-  dom.app.classList.add('mode-3d');
-  dom.carea2d.classList.remove('on');
-  dom.carea3d.classList.add('on');
-  dom.vtab3d.classList.add('on');
-  dom.vtab2d.classList.remove('on');
+export async function initSplitView3D() {
   if (!viewModeReady) {
     initViewModeControls();
     viewModeReady = true;
@@ -25,14 +19,18 @@ export async function show3DView() {
   reset3DView();
 }
 
+export async function show3DView() {
+  setSplitFocus('3d');
+  if (!ctx.three.renderer) {
+    await initSplitView3D();
+  } else {
+    resizeThree();
+    renderThreeFrame();
+  }
+}
+
 export function show2DView() {
-  const { dom, state } = ctx;
-  state.activeScreen = '2d';
-  dom.app.classList.remove('mode-3d');
-  dom.carea2d.classList.add('on');
-  dom.carea3d.classList.remove('on');
-  dom.vtab2d.classList.add('on');
-  dom.vtab3d.classList.remove('on');
+  setSplitFocus('2d');
   resizeThree();
 }
 

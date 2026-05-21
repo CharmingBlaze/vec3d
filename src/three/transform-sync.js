@@ -9,10 +9,12 @@ export function apply3DTranslateDelta(ids, dx, dy) {
 
   const idSet = new Set(ids);
   let moved = false;
-  meshes3d.forEach((mesh) => {
-    if (!idSet.has(mesh.userData.sourceObjectId)) return;
-    mesh.position.x += dx;
-    mesh.position.y -= dy;
+
+  idSet.forEach((id) => {
+    const group = ctx.three.objectGroups?.get(id);
+    if (!group) return;
+    group.position.x += dx;
+    group.position.y -= dy;
     moved = true;
   });
 

@@ -4,6 +4,7 @@ import { ctx } from './context.js';
 export function tubeRadiusFromDepth(strokeW, depth, profile) {
   const strokeR = Math.max(1, strokeW / 2);
   const depthR = Math.max(4, depth / 5);
+  if (profile === 'rounded') return Math.max(strokeR * 1.15, depth / 3.2, 5);
   if (profile === 'tube') return Math.max(strokeR, depthR);
   return Math.max(strokeR, depth / 8);
 }
@@ -22,13 +23,20 @@ export function shouldUseTubeMesh(o, style, profile) {
   const tag = o.el?.tagName?.toLowerCase();
   if (!['path', 'line', 'polyline'].includes(tag)) return false;
 
-  const layerStrokeMode = o.data?.d3?.strokeMode;
-  if (layerStrokeMode === 'flat') return false;
+  const fill = style.fill;
+  const hasFill = fill && fill !== 'none' && fill !== 'transparent';
 
+  // Filled layers extrude as solids for volumetric profiles (inflated, game, etc.).
+  // Centerline / blob tubes are for stroke paths, or the tube / doodle profiles.
+  if (hasFill && profile !== 'tube' && profile !== 'rounded') return false;
+
+  const layerStrokeMode = o.data?.d3?.strokeMode;
+  if (layerStrokeMode === 'flat' && profile !== 'rounded') return false;
+
+  if (profile === 'rounded') return true;
   if (profile === 'tube' || layerStrokeMode === 'tube') return true;
 
-  const fill = style.fill;
-  const strokeOnly = !fill || fill === 'none' || fill === 'transparent';
+  const strokeOnly = !hasFill;
   if (strokeOnly && style.sw > 0) return true;
 
   if (tag === 'path' && style.sw > 0) {

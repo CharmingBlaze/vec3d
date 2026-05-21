@@ -15,6 +15,14 @@ export function mapToEditor(el, x, y) {
   return { x: p.x, y: p.y };
 }
 
+/** Editor / canvas-group coords → element local coords */
+export function mapFromEditor(el, x, y) {
+  const ctm = getEditorCTM(el);
+  if (!ctm) return invertElementTransformFallback(el, x, y);
+  const p = new DOMPoint(x, y).matrixTransform(ctm.inverse());
+  return { x: p.x, y: p.y };
+}
+
 /** Bounding box in editor coordinates (includes element transform) */
 export function getEditorBBox(el) {
   const ctm = getEditorCTM(el);
@@ -85,6 +93,24 @@ function applyElementTransformFallback(el, x, y) {
   return {
     x: m.a * x + m.c * y + m.e,
     y: m.b * x + m.d * y + m.f,
+  };
+}
+
+function invertElementTransformFallback(el, x, y) {
+  const m = parseSvgTransform(el.getAttribute('transform') || '');
+  const det = m.a * m.d - m.b * m.c;
+  if (!det) return { x, y };
+  const inv = {
+    a: m.d / det,
+    b: -m.b / det,
+    c: -m.c / det,
+    d: m.a / det,
+    e: (m.c * m.f - m.d * m.e) / det,
+    f: (m.b * m.e - m.a * m.f) / det,
+  };
+  return {
+    x: inv.a * x + inv.c * y + inv.e,
+    y: inv.b * x + inv.d * y + inv.f,
   };
 }
 

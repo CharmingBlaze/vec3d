@@ -13,8 +13,9 @@ function detailSegments() {
   const raw = build?.cseg ?? +(ctx.dom?.d3Cseg?.value || 8);
   const profile = build?.profile ?? ctx.dom?.d3Profile?.value;
   const endRound = build?.round ?? +(ctx.dom?.d3Round?.value || 0);
-  let max = profile === 'game' ? 6 : 32;
+  let max = profile === 'game' ? 6 : profile === 'rounded' ? 8 : 32;
   if (endRound > 0 || profile === 'capsule' || profile === 'tube') max = Math.max(max, 24);
+  if (profile === 'rounded') max = Math.min(max, 8);
   return Math.max(3, Math.min(max, raw));
 }
 
@@ -23,6 +24,7 @@ function simplificationTolerance() {
   const profile = build?.profile ?? ctx.dom?.d3Profile?.value;
   const endRound = build?.round ?? +(ctx.dom?.d3Round?.value || 0);
   if (endRound > 0 || profile === 'capsule' || profile === 'tube') return 1;
+  if (profile === 'rounded') return 2.5;
   return profile === 'game' ? 4 : 1.5;
 }
 

@@ -33,7 +33,8 @@ export function onObjMouseDown(e) {
 
 export function onMoveSurfaceDown(e) {
   e.stopPropagation();
-  if (ctx.state.tool !== 'select' || !ctx.state.selected.length) return;
+  const tool = ctx.state.tool;
+  if ((tool !== 'select' && tool !== 'node') || !ctx.state.selected.length) return;
   startMoveDrag(svgPoint(e));
 }
 

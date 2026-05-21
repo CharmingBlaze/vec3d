@@ -14,13 +14,21 @@ export const ctx = {
     camera: null,
     group: null,
     overlayMesh: null,
-    animId: null,
+    transformControls: null,
+    transformControlsHelper: null,
+    objectGroups: null,
+    gizmoPivot: null,
+    gizmoTargets: null,
+    gizmoControlBase: null,
+    gizmoDragging: false,
+    gizmoWasDragging: false,
+    gizmoChanged: false,
+    lastGizmoPointerUp: 0,
   },
   interaction: {
     isDragging: false,
     dragType: null,
     panStart: null,
-    spaceDown: false,
   },
 };
 

@@ -1,17 +1,19 @@
 import { ctx, getObj } from './context.js';
 
-/** @typedef {{ depth: number, bevel: number, round: number, bseg: number, cseg: number, profile: string, mat: string, shine: number, strokeMode: string }} D3Settings */
+/** @typedef {{ depth: number, bevel: number, round: number, bseg: number, cseg: number, profile: string, mat: string, shine: number, strokeMode: string, topoPreset?: string, inflation?: number }} D3Settings */
 
 export const D3_DEFAULTS = {
-  depth: 60,
-  bevel: 0,
-  round: 0,
-  bseg: 1,
-  cseg: 6,
+  depth: 58,
+  bevel: 16,
+  round: 14,
+  bseg: 3,
+  cseg: 24,
+  inflation: 85,
   profile: 'game',
   mat: 'flat',
   shine: 100,
   strokeMode: 'flat',
+  topoPreset: 'blender-edit',
 };
 
 /** Document defaults for new layers (no selection). */
@@ -28,7 +30,12 @@ export function readD3FromDom(dom = ctx.dom) {
     round: +(dom.d3Round?.value ?? D3_DEFAULTS.round),
     bseg: +(dom.d3Bseg?.value ?? D3_DEFAULTS.bseg),
     cseg: +(dom.d3Cseg?.value ?? D3_DEFAULTS.cseg),
-    profile: dom.d3Profile?.value ?? D3_DEFAULTS.profile,
+    inflation: +(dom.d3Inflation?.value ?? D3_DEFAULTS.inflation),
+    profile: (() => {
+      const p = dom.d3Profile?.value ?? D3_DEFAULTS.profile;
+      return p === 'doodle' ? 'rounded' : p;
+    })(),
+    topoPreset: dom.d3TopoPreset?.value ?? D3_DEFAULTS.topoPreset,
     mat: dom.d3Mat?.value ?? D3_DEFAULTS.mat,
     shine: +(dom.d3Shine?.value ?? D3_DEFAULTS.shine),
     strokeMode: dom.d3StrokeMode?.value ?? D3_DEFAULTS.strokeMode,
@@ -47,7 +54,10 @@ export function applyD3ToDom(d3, dom = ctx.dom) {
   if (dom.vvBseg) dom.vvBseg.textContent = String(d3.bseg);
   if (dom.d3Cseg) dom.d3Cseg.value = d3.cseg;
   if (dom.vvCseg) dom.vvCseg.textContent = String(d3.cseg);
+  if (dom.d3Inflation) dom.d3Inflation.value = d3.inflation ?? D3_DEFAULTS.inflation;
+  if (dom.vvInflation) dom.vvInflation.textContent = String(d3.inflation ?? D3_DEFAULTS.inflation);
   if (dom.d3Profile) dom.d3Profile.value = d3.profile;
+  if (dom.d3TopoPreset) dom.d3TopoPreset.value = d3.topoPreset ?? D3_DEFAULTS.topoPreset;
   if (dom.d3Mat) dom.d3Mat.value = d3.mat;
   if (dom.d3Shine) dom.d3Shine.value = d3.shine;
   if (dom.vvShine) dom.vvShine.textContent = String(d3.shine);
@@ -73,35 +83,61 @@ export function ensureObjectD3(o) {
   return o.data.d3;
 }
 
-/** Resolved 3D settings for mesh generation. */
+/** Resolved 3D settings for mesh generation — each layer uses its own stored snapshot. */
 export function getObjectD3(o) {
-  return { ...D3_DEFAULTS, ...getDocumentD3(), ...(o.data?.d3 || {}) };
+  const stored = o?.data?.d3;
+  const d3 = stored
+    ? { ...D3_DEFAULTS, ...stored }
+    : { ...D3_DEFAULTS, ...getDocumentD3() };
+  if (d3.profile === 'doodle') d3.profile = 'rounded';
+  return d3;
 }
 
 /**
- * Apply partial 3D settings to selection, or document defaults if nothing selected.
- * @returns {boolean} true if any visible layer was updated (rebuild needed)
+ * Apply 3D settings to selected layer(s), or document defaults when nothing is selected.
+ * @returns {boolean} true when existing layer geometry should rebuild
  */
 export function applyD3ToSelection(partial) {
   const { state } = ctx;
-  if (!state.selected.length) {
-    Object.assign(getDocumentD3(), partial);
-    return false;
+
+  if (state.selected.length) {
+    state.selected.forEach((id) => {
+      const o = getObj(id);
+      if (o) Object.assign(ensureObjectD3(o), partial);
+    });
+    return true;
   }
-  state.selected.forEach((id) => {
-    const o = getObj(id);
-    if (!o) return;
-    Object.assign(ensureObjectD3(o), partial);
-  });
-  return true;
+
+  Object.assign(getDocumentD3(), partial);
+  if (partial.strokeMode) state.strokeMeshMode = partial.strokeMode;
+  return false;
 }
 
 /** Profile preset tweaks (same as panel profile dropdown). */
 export function profilePresetPatch(profile, current) {
   const d3 = { ...current, profile };
   if (profile === 'game') {
-    d3.bseg = 1;
-    d3.cseg = Math.min(d3.cseg || 6, 6);
+    d3.topoPreset = d3.topoPreset || 'blender-edit';
+    d3.bseg = Math.min(d3.bseg || 3, 4);
+    d3.cseg = Math.min(d3.cseg || 24, 32);
+    d3.inflation = d3.inflation ?? 85;
+    d3.bevel = d3.bevel ?? 16;
+    d3.strokeMode = 'flat';
+  }
+  if (profile === 'inflated') {
+    d3.topoPreset = d3.topoPreset || 'clean-game';
+    d3.bseg = Math.max(d3.bseg || 5, 5);
+    d3.cseg = Math.max(d3.cseg || 64, 48);
+    d3.inflation = d3.inflation ?? 100;
+    d3.bevel = d3.bevel ?? 20;
+    d3.strokeMode = 'flat';
+  }
+  if (profile === 'slab') {
+    d3.strokeMode = 'flat';
+    d3.round = 0;
+    d3.bevel = Math.min(d3.bevel ?? 6, 10);
+    d3.topoPreset = d3.topoPreset || 'blender-edit';
+    d3.cseg = Math.min(d3.cseg || 24, 28);
   }
   if (profile === 'capsule') {
     d3.round = 100;
@@ -114,6 +150,19 @@ export function profilePresetPatch(profile, current) {
     d3.round = 0;
     d3.cseg = Math.max(d3.cseg || 6, 16);
     d3.depth = Math.max(d3.depth || 60, 40);
+  }
+  if (profile === 'rounded') {
+    d3.strokeMode = 'tube';
+    d3.bevel = 0;
+    d3.round = 0;
+    d3.topoPreset = d3.topoPreset || 'clean-game';
+    d3.bseg = Math.max(d3.bseg || 5, 5);
+    d3.cseg = Math.max(d3.cseg || 64, 32);
+    d3.inflation = d3.inflation ?? 75;
+    d3.depth = Math.max(d3.depth || 40, 24);
+  }
+  if (['inflated', 'game', 'slab', 'capsule', 'outline'].includes(profile)) {
+    d3.strokeMode = 'flat';
   }
   return d3;
 }

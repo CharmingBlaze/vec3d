@@ -8,7 +8,7 @@ export function fitCameraToCanvas(padding = 1.18) {
   const { three, dom, state } = ctx;
   if (!three.camera?.isOrthographicCamera) return;
 
-  const area = ctx.state.activeScreen === '3d' ? dom.carea3d : dom.carea2d;
+  const area = dom.carea3d;
   const viewW = area?.clientWidth || 1;
   const viewH = area?.clientHeight || 1;
   const canvasW = state.canvasW;

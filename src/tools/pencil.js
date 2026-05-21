@@ -1,5 +1,8 @@
 import { ctx } from '../core/context.js';
 import { shouldDrawAsTube } from '../core/tube-mode.js';
+import { getDocumentD3 } from '../core/d3-settings.js';
+import { prepareOutlineForMeshing } from '../topology/prepareOutlineForMeshing.js';
+import { resolveTopologySettings, toPrepareOptions } from '../topology/topology-settings.js';
 import { svgEl } from '../svg/elements.js';
 import { buildPath } from '../svg/path.js';
 import { addObject } from '../editor/objects.js';
@@ -63,6 +66,7 @@ export function finishPencilStroke() {
     dom.previewLayer.innerHTML = '';
     const smoothed = smoothPencilPts(state.pencilPts);
     const closed =
+      state.freehandAutoClose &&
       Math.hypot(
         smoothed[0].x - smoothed[smoothed.length - 1].x,
         smoothed[0].y - smoothed[smoothed.length - 1].y,
@@ -77,7 +81,19 @@ export function finishPencilStroke() {
       'stroke-linejoin': 'round',
       opacity: state.opacity / 100,
     });
-    const o = addObject(el, 'path', { pts: smoothed });
+    const o = addObject(el, 'path', {
+      pts: smoothed,
+      closed,
+      meshOutline: (() => {
+        if (!closed) return null;
+        const topo = resolveTopologySettings(getDocumentD3());
+        const prepared = prepareOutlineForMeshing(
+          state.pencilPts.map((pt) => ({ x: pt.x, y: pt.y })),
+          toPrepareOptions(topo),
+        );
+        return prepared.isValid ? prepared.resampled : null;
+      })(),
+    });
     selectObj(o.id);
   } else {
     dom.previewLayer.innerHTML = '';

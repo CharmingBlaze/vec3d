@@ -1,6 +1,6 @@
 import { ctx, getObj } from '../core/context.js';
 import { shouldDrawAsTube } from '../core/tube-mode.js';
-import { DRAW_TOOLS } from '../core/constants.js';
+import { DRAW_TOOLS, FREEHAND_MIN_POINT_SPACING } from '../core/constants.js';
 import { svgEl } from '../svg/elements.js';
 import { svgPoint, setZoom, applyTransform } from '../svg/coordinates.js';
 import { getEditorBBox } from '../svg/geometry.js';
@@ -22,7 +22,7 @@ export function initCanvasEvents() {
   const { mainSvg } = dom;
 
   mainSvg.addEventListener('mousedown', (e) => {
-    if (e.button === 1 || (e.button === 0 && interaction.spaceDown)) {
+    if (e.button === 1) {
       interaction.panStart = { x: e.clientX - ctx.state.panX, y: e.clientY - ctx.state.panY };
       return;
     }
@@ -175,6 +175,8 @@ function onMouseMove(e) {
   if (!interaction.isDragging) return;
 
   if (interaction.dragType === 'pencil' || interaction.dragType === 'tube') {
+    const last = state.pencilPts[state.pencilPts.length - 1];
+    if (last && Math.hypot(p.x - last.x, p.y - last.y) < FREEHAND_MIN_POINT_SPACING) return;
     state.pencilPts.push(p);
     const cur = state.pencilEl;
     cur.setAttribute('d', `${cur.getAttribute('d')} L ${p.x} ${p.y}`);

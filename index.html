@@ -35,6 +35,13 @@
       <symbol id="i-fit" viewBox="0 0 24 24"><path d="M5 9V5h4M15 5h4v4M19 15v4h-4M9 19H5v-4"/><rect x="8" y="8" width="8" height="8" rx="1"/></symbol>
       <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
       <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+      <symbol id="i-move3d" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></symbol>
+      <symbol id="i-rotate3d" viewBox="0 0 24 24"><path d="M6 7.5A7.5 7.5 0 0118.5 6L21 8.5M18 6h.5V2.5"/><path d="M18 16.5A7.5 7.5 0 015.5 18L3 15.5M6 18h-.5v3.5"/></symbol>
+      <symbol id="i-scale3d" viewBox="0 0 24 24"><path d="M5 19L19 5M14 5h5v5M10 19H5v-5"/><rect x="8" y="8" width="8" height="8" rx="1"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="1.5"/><path d="M5 16V5h11"/></symbol>
+      <symbol id="i-paste" viewBox="0 0 24 24"><path d="M9 5h6l1 2h2v13H6V7h2l1-2z"/><path d="M9 5h6M9 11h6M9 15h4"/></symbol>
+      <symbol id="i-flip-h" viewBox="0 0 24 24"><path d="M12 4v16"/><path d="M4 7l6 5-6 5V7zM20 7l-6 5 6 5V7z"/></symbol>
+      <symbol id="i-flip-v" viewBox="0 0 24 24"><path d="M4 12h16"/><path d="M7 4l5 6 5-6H7zM7 20l5-6 5 6H7z"/></symbol>
     </svg>
     <div id="app">
       <div id="topbar">
@@ -66,18 +73,25 @@
           </details>
         </div>
         <div class="tsep"></div>
+        <div class="top-actions" aria-label="Selection actions">
+          <button class="tbtn icon-only" id="tb-copy" type="button" title="Copy selection (Ctrl+C)" aria-label="Copy selection"><svg><use href="#i-copy"></use></svg></button>
+          <button class="tbtn icon-only" id="tb-paste" type="button" title="Paste selection (Ctrl+V)" aria-label="Paste selection"><svg><use href="#i-paste"></use></svg></button>
+          <button class="tbtn icon-only" id="tb-flip-h" type="button" title="Flip horizontal" aria-label="Flip horizontal"><svg><use href="#i-flip-h"></use></svg></button>
+          <button class="tbtn icon-only" id="tb-flip-v" type="button" title="Flip vertical" aria-label="Flip vertical"><svg><use href="#i-flip-v"></use></svg></button>
+        </div>
+        <div class="tsep"></div>
         <div class="tab-group">
           <div class="view-tab-set">
             <label class="view-bg-swatch" title="2D canvas background">
               <span class="view-bg-dot" id="bg-2d-dot" aria-hidden="true"></span>
-              <input type="color" id="bg-2d-picker" class="view-bg-input" value="#ffffff" aria-label="2D canvas background" />
+              <input type="color" id="bg-2d-picker" class="view-bg-input" value="#f8f9fc" aria-label="2D canvas background" />
             </label>
             <button class="vtab on" id="vtab-2d">2D Edit</button>
           </div>
           <div class="view-tab-set">
             <label class="view-bg-swatch" title="3D view background">
               <span class="view-bg-dot" id="bg-3d-dot" aria-hidden="true"></span>
-              <input type="color" id="bg-3d-picker" class="view-bg-input" value="#0e0f18" aria-label="3D view background" />
+              <input type="color" id="bg-3d-picker" class="view-bg-input" value="#111318" aria-label="3D view background" />
             </label>
             <button class="vtab" id="vtab-3d">3D View</button>
           </div>
@@ -86,7 +100,7 @@
 
       <div id="main">
         <div id="ltb">
-          <button class="it on" data-tool="select" title="Select (V)" aria-label="Select"><svg><use href="#i-select"></use></svg></button>
+          <button class="it on" data-tool="select" title="Select (V, Space)" aria-label="Select"><svg><use href="#i-select"></use></svg></button>
           <button class="it" data-tool="node" title="Node (N)" aria-label="Node edit"><svg><use href="#i-node"></use></svg></button>
           <div class="it-sep"></div>
           <button class="it" data-tool="pen" title="Pen (P)" aria-label="Pen"><svg><use href="#i-pen"></use></svg></button>
@@ -152,37 +166,47 @@
               <div class="ph">3D Live <span class="live-badge">REALTIME</span></div>
               <button class="btn primary" id="btn-3d-reset" type="button">Reset Camera</button>
               <div class="row">
-                <span class="rl">Draw 3D</span>
+                <span class="rl">3D Mode</span>
                 <select id="d3-stroke-mode">
                   <option value="flat">Flat Extrude</option>
-                  <option value="tube">Rounded Tube</option>
+                  <option value="tube">Tube Stroke</option>
                 </select>
               </div>
               <div class="row">
                 <span class="rl">Display</span>
                 <select id="d3-view-mode">
                   <option value="solid" data-d3-view="solid">Solid</option>
-                  <option value="solid-lines" data-d3-view="solid-lines">Solid with Lines</option>
-                  <option value="wireframe" data-d3-view="wireframe">Wireframe</option>
+                  <option value="solid-loops" data-d3-view="solid-loops" selected>Solid + Loops</option>
+                  <option value="loops" data-d3-view="loops">Clean Loops</option>
+                  <option value="wireframe" data-d3-view="wireframe">Raw Wire Debug</option>
                   <option value="textured" data-d3-view="textured">Textured</option>
                 </select>
               </div>
-              <div class="row"><span class="rl">Profile</span>
+              <div class="row"><span class="rl">3D Shape</span>
                 <select id="d3-profile">
-                  <option value="game" selected>Game Low Poly</option>
-                  <option value="slab">Flat Slab</option>
-                  <option value="rounded">Rounded Solid</option>
+                  <option value="game" selected>Game Blob</option>
+                  <option value="slab">Flat Extrude</option>
+                  <option value="inflated">Inflated Blob</option>
+                  <option value="rounded">Solid Blob</option>
                   <option value="capsule">Capsule / Pill</option>
-                  <option value="tube">Rounded Tube</option>
-                  <option value="inflated">Inflated / Soft</option>
+                  <option value="tube">Tube Stroke</option>
                   <option value="outline">Outline Logo</option>
                 </select>
               </div>
-              <div class="row"><span class="rl">Depth</span><input type="range" id="d3-depth" min="1" max="300" value="60" title="Extrusion depth — for strokes/tubes this sets the 3D tube thickness" /><span class="rv" id="vv-depth">60</span></div>
-              <div class="row"><span class="rl">Bevel</span><input type="range" id="d3-bevel" min="0" max="40" value="0" title="Chamfer the silhouette edges (corners of the shape outline)" /><span class="rv" id="vv-bevel">0</span></div>
-              <div class="row"><span class="rl">End Round</span><input type="range" id="d3-round" min="0" max="100" value="0" title="Roundness of front/back caps — 100% = full capsule ends" /><span class="rv" id="vv-round">0</span></div>
-              <div class="row"><span class="rl">BvlSeg</span><input type="range" id="d3-bseg" min="1" max="8" value="1" /><span class="rv" id="vv-bseg">1</span></div>
-              <div class="row"><span class="rl">CurveSeg</span><input type="range" id="d3-cseg" min="3" max="32" value="6" /><span class="rv" id="vv-cseg">6</span></div>
+              <div class="row"><span class="rl">Topology</span>
+                <select id="d3-topo-preset" title="Mesh cleanup preset — Blender Edit uses fewer verts and even quad loops">
+                  <option value="low-poly">Low Poly Game</option>
+                  <option value="clean-game">Clean Game</option>
+                  <option value="blender-edit" selected>Blender Edit</option>
+                  <option value="smooth">Smooth Preview</option>
+                </select>
+              </div>
+              <div class="row"><span class="rl">Depth</span><input type="range" id="d3-depth" min="1" max="100" value="58" title="Extrusion depth" /><span class="rv" id="vv-depth">58</span></div>
+              <div class="row"><span class="rl">Inflation</span><input type="range" id="d3-inflation" min="0" max="150" value="85" title="Surface puffiness — lower = flatter" /><span class="rv" id="vv-inflation">85</span></div>
+              <div class="row"><span class="rl">Bevel</span><input type="range" id="d3-bevel" min="0" max="40" value="16" title="Edge bevel on blob surfaces" /><span class="rv" id="vv-bevel">16</span></div>
+              <div class="row"><span class="rl">End Round</span><input type="range" id="d3-round" min="0" max="100" value="14" title="Cap flatness — lower = less pillow puff" /><span class="rv" id="vv-round">14</span></div>
+              <div class="row"><span class="rl">Rings</span><input type="range" id="d3-bseg" min="2" max="6" value="3" title="Concentric edge loops — 3 is best for Blender" /><span class="rv" id="vv-bseg">3</span></div>
+              <div class="row"><span class="rl">Boundary Pts</span><input type="range" id="d3-cseg" min="12" max="96" step="4" value="24" title="Silhouette vertices — lower = easier to edit in Blender" /><span class="rv" id="vv-cseg">24</span></div>
               <div class="row"><span class="rl">Material</span>
                 <select id="d3-mat">
                   <option value="flat">Flat Color</option>
@@ -202,10 +226,10 @@
               <div class="color-stack">
                 <div class="cs-swatches">
                   <button class="cs-bg" id="cs-bg" style="background:#ffffff" title="Stroke color"></button>
-                  <button class="cs-fg" id="cs-fg" style="background:#00e5ff" title="Fill color"></button>
+                  <button class="cs-fg" id="cs-fg" style="background:#ff6b35" title="Fill color"></button>
                 </div>
                 <button class="btn color-open" id="color-open">Color Picker</button>
-                <input type="color" id="fill-picker" value="#00e5ff" />
+                <input type="color" id="fill-picker" value="#ff6b35" />
                 <input type="color" id="stroke-picker" value="#ffffff" />
               </div>
               <div class="color-popover" id="color-popover" hidden>
@@ -216,11 +240,11 @@
                 <canvas id="color-rect" width="180" height="112"></canvas>
                 <input type="range" id="color-hue" min="0" max="360" value="186" />
                 <div class="color-fields">
-                  <input class="prop-in" id="color-hex" value="#00e5ff" maxlength="7" />
+                  <input class="prop-in" id="color-hex" value="#ff6b35" maxlength="7" />
                   <button class="btn" id="color-none">None</button>
                 </div>
               </div>
-              <div class="pal" id="palette"></div>
+              <div class="pal pal-panel" id="palette"></div>
               <div class="row">
                 <span class="rl">Stroke</span>
                 <span class="rv" id="vv-sw">2</span>
@@ -235,6 +259,10 @@
 
             <div class="ps">
               <div class="ph">Path Ops</div>
+              <label class="toggle-row" title="Close freehand paths when the end is near the start">
+                <span>Auto-close Freehand</span>
+                <input type="checkbox" id="freehand-auto-close" checked />
+              </label>
               <button class="btn" id="op-flatten">Flatten to Path</button>
               <button class="btn" id="op-reverse">Reverse Path</button>
               <button class="btn" id="op-bool">Boolean Union</button>
@@ -246,29 +274,32 @@
           </div>
         </div>
 
-        <div id="viewport">
+        <div id="viewport" class="split-view">
+          <div id="split-2d" class="split-pane">
           <div id="carea-2d" class="screen-pane on">
             <svg id="grid-svg" width="100%" height="100%">
               <defs>
                 <pattern id="smallgrid" width="20" height="20" patternUnits="userSpaceOnUse">
-                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,.04)" stroke-width=".5" />
+                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(0,0,0,.04)" stroke-width="1" />
                 </pattern>
-                <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
-                  <rect width="100" height="100" fill="url(#smallgrid)" />
-                  <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,.08)" stroke-width=".5" />
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <rect width="40" height="40" fill="url(#smallgrid)" />
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0,0,0,.07)" stroke-width="1" />
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#grid)" />
             </svg>
             <svg id="main-svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
               <g id="canvas-group">
-                <rect id="canvas-bg" x="0" y="0" width="800" height="600" fill="#ffffff" rx="2" />
+                <rect id="canvas-bg" x="0" y="0" width="800" height="600" fill="#f8f9fc" rx="4" />
+                <rect id="canvas-grid" x="0" y="0" width="800" height="600" fill="url(#canvas-grid-major)" pointer-events="none" />
                 <g id="shapes-layer"></g>
                 <g id="handles-layer"></g>
                 <g id="preview-layer"></g>
               </g>
             </svg>
-            <div class="mpill pill-2d" id="mpill">2D VECTOR EDIT</div>
+            <div class="mpill pill-2d" id="mpill">Draw</div>
+            <div id="canvas-color-strip" class="canvas-color-strip" title="Fill colors — scroll for more"></div>
             <div class="zoom-hud">
               <button class="zb" id="zoom-out-btn" aria-label="Zoom out"><svg><use href="#i-minus"></use></svg></button>
               <div id="zlabel">100%</div>
@@ -276,19 +307,30 @@
               <button class="zb" id="zoom-fit" aria-label="Fit view"><svg><use href="#i-fit"></use></svg></button>
             </div>
           </div>
+          </div>
 
-          <div id="carea-3d" class="screen-pane">
+          <div id="split-divider" class="split-divider" role="separator" aria-orientation="vertical" aria-label="Resize 2D and 3D panels" tabindex="0"></div>
+
+          <div id="split-3d" class="split-pane">
+          <div id="carea-3d" class="screen-pane on">
             <canvas id="three-c"></canvas>
-            <div class="mpill pill-3d">3D LIVE PREVIEW</div>
+            <div class="mpill pill-3d">3D View</div>
+            <div class="d3-gizmo-tools" role="group" aria-label="3D transform tools">
+              <button type="button" class="d3-tool on" id="gizmo-translate" title="Move selected 3D object" aria-label="Move selected 3D object"><svg><use href="#i-move3d"></use></svg></button>
+              <button type="button" class="d3-tool" id="gizmo-rotate" title="Rotate selected 3D object" aria-label="Rotate selected 3D object"><svg><use href="#i-rotate3d"></use></svg></button>
+              <button type="button" class="d3-tool" id="gizmo-scale" title="Scale selected 3D object" aria-label="Scale selected 3D object"><svg><use href="#i-scale3d"></use></svg></button>
+            </div>
             <div class="d3-view-modes" role="group" aria-label="3D display mode">
-              <button type="button" class="d3-vm on" data-d3-view="solid" title="Solid">Solid</button>
-              <button type="button" class="d3-vm" data-d3-view="solid-lines" title="Solid with edge lines">Lines</button>
-              <button type="button" class="d3-vm" data-d3-view="wireframe" title="Wireframe">Wire</button>
-              <button type="button" class="d3-vm" data-d3-view="textured" title="Shaded / textured">Textured</button>
+              <button type="button" class="d3-vm" data-d3-view="solid" title="Solid">Solid</button>
+              <button type="button" class="d3-vm on" data-d3-view="solid-loops" title="Shaded with topology loops">Loops</button>
+              <button type="button" class="d3-vm" data-d3-view="loops" title="Clean loop overlay only">Clean</button>
+              <button type="button" class="d3-vm" data-d3-view="wireframe" title="Raw triangle wire debug">Debug</button>
+              <button type="button" class="d3-vm" data-d3-view="textured" title="Shaded / textured">Shaded</button>
             </div>
             <div class="zoom-hud">
               <button class="zb fit-label" id="zoom-fit-3d" aria-label="Fit 3D view"><svg><use href="#i-fit"></use></svg><span>Fit</span></button>
             </div>
+          </div>
           </div>
         </div>
       </div>
@@ -298,7 +340,7 @@
         <span id="sb-tool">Tool: Select</span>
         <span id="sb-sel">No selection</span>
         <span id="sb-objs">Objects: 0</span>
-        <span style="margin-left:auto;color:var(--dim)">Vec3D · Realtime Vector → 3D</span>
+        <span style="margin-left:auto;color:var(--accent)">Vec3D · Realtime Vector → 3D</span>
       </div>
     </div>
     <script type="module" src="/src/main.js"></script>

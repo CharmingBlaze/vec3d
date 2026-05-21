@@ -12,6 +12,8 @@ import { nudgeObjects } from '../svg/transform.js';
 import { showHandles } from '../editor/handles.js';
 import { saveHistory } from '../editor/history.js';
 import { flushRealtime3D } from '../three/realtime.js';
+import { setGizmoMode } from '../three/gizmos.js';
+import { copySelection, pasteClipboard } from '../editor/clipboard.js';
 
 export function toggleLeftPanel() {
   ctx.dom.app.classList.toggle('lpanel-hidden');
@@ -19,13 +21,22 @@ export function toggleLeftPanel() {
 }
 
 export function initKeyboard() {
-  const { dom, interaction, state } = ctx;
+  const { dom, state } = ctx;
 
   document.addEventListener('keydown', (e) => {
     const inField = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT';
     const mod = e.ctrlKey || e.metaKey;
 
     if (inField) return;
+
+    const threeFocused = dom.threeCanvas && document.activeElement === dom.threeCanvas;
+    if (threeFocused && ['w', 'W', 'e', 'E', 'r', 'R'].includes(e.key)) {
+      if (e.key === 'w' || e.key === 'W') setGizmoMode('translate');
+      if (e.key === 'e' || e.key === 'E') setGizmoMode('rotate');
+      if (e.key === 'r' || e.key === 'R') setGizmoMode('scale');
+      e.preventDefault();
+      return;
+    }
 
     if (e.key === 'Tab') {
       e.preventDefault();
@@ -34,9 +45,10 @@ export function initKeyboard() {
     }
 
     if (e.key === ' ') {
-      interaction.spaceDown = true;
-      dom.mainSvg.style.cursor = 'grab';
       e.preventDefault();
+      dom.shapePopupBtn?.classList.remove('on');
+      document.querySelector('[data-tool="select"]')?.click();
+      return;
     }
 
     if (mod && (e.key === 'z' || e.key === 'Z')) {
@@ -53,6 +65,16 @@ export function initKeyboard() {
     if (mod && e.key === 's') {
       e.preventDefault();
       exportSVG();
+    }
+    if (mod && (e.key === 'c' || e.key === 'C')) {
+      e.preventDefault();
+      copySelection();
+      return;
+    }
+    if (mod && (e.key === 'v' || e.key === 'V')) {
+      e.preventDefault();
+      pasteClipboard();
+      return;
     }
     if (mod && e.key === 'a') {
       e.preventDefault();
@@ -99,13 +121,6 @@ export function initKeyboard() {
         saveHistory();
         flushRealtime3D();
       }
-    }
-  });
-
-  document.addEventListener('keyup', (e) => {
-    if (e.key === ' ') {
-      interaction.spaceDown = false;
-      dom.mainSvg.style.cursor = 'default';
     }
   });
 }

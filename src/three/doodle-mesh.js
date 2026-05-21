@@ -35,13 +35,12 @@ function toCurvePoints(points, cx, cy) {
   });
 }
 
-/** Hemisphere cap oriented along a unit direction */
 function hemisphereCap(origin, outward, radius, radialSeg) {
-  const segs = Math.max(6, radialSeg);
+  const segs = Math.max(8, radialSeg);
   const geo = new THREE.SphereGeometry(
     radius,
     segs,
-    Math.max(4, Math.ceil(segs / 2)),
+    Math.max(6, Math.ceil(segs / 2)),
     0,
     Math.PI * 2,
     0,
@@ -56,19 +55,19 @@ function hemisphereCap(origin, outward, radius, radialSeg) {
 }
 
 /**
- * Rounded tube mesh swept along a drawn centerline (loop rows + round caps).
+ * Paint 3D–style puffy doodle: CatmullRomCurve3 + TubeGeometry + joint spheres + round caps.
  * @param {{ x: number, y: number }[]} points
  */
-export function createRoundedTubeMesh(points, radius, cx, cy, opts = {}) {
+export function createDoodleMesh(points, radius, cx, cy, opts = {}) {
   if (!points || points.length < 2 || radius <= 0) return null;
 
-  const radialSeg = Math.max(8, opts.radialSegments ?? 12);
+  const radialSeg = Math.max(6, Math.min(10, opts.radialSegments ?? 8));
   const tubularSeg = Math.max(
-    16,
-    opts.tubularSegments ?? Math.ceil(points.length * 1.5),
+    12,
+    Math.min(36, opts.tubularSegments ?? Math.ceil(points.length * 1.2)),
   );
 
-  const vecs = toCurvePoints(points, cx, cy);
+  let vecs = toCurvePoints(points, cx, cy);
   if (vecs.length === 2) {
     const mid = vecs[0].clone().lerp(vecs[1], 0.5);
     vecs.splice(1, 0, mid);
@@ -83,10 +82,10 @@ export function createRoundedTubeMesh(points, radius, cx, cy, opts = {}) {
     vecs,
     closed,
     'centripetal',
-    opts.curveTension ?? 0.5,
+    opts.curveTension ?? 0.35,
   );
-  const parts = [];
 
+  const parts = [];
   parts.push(new THREE.TubeGeometry(curve, tubularSeg, radius, radialSeg, closed));
 
   if (!closed) {
@@ -94,10 +93,59 @@ export function createRoundedTubeMesh(points, radius, cx, cy, opts = {}) {
     const end = curve.getPoint(1);
     const tanStart = curve.getTangent(0).normalize();
     const tanEnd = curve.getTangent(1).normalize();
-
     parts.push(hemisphereCap(start, tanStart.clone().negate(), radius, radialSeg));
     parts.push(hemisphereCap(end, tanEnd, radius, radialSeg));
   }
 
-  return mergeParts(parts);
+  const jointR = radius * (opts.jointScale ?? 1.04);
+  const sphereSeg = Math.max(6, Math.min(8, radialSeg));
+  const jointStep = Math.max(1, Math.ceil(vecs.length / Math.min(8, vecs.length)));
+  vecs.forEach((v, i) => {
+    if (i % jointStep !== 0 && i !== vecs.length - 1) return;
+    const sphere = new THREE.SphereGeometry(
+      jointR,
+      sphereSeg,
+      Math.max(4, Math.ceil(sphereSeg * 0.75)),
+    );
+    sphere.translate(v.x, v.y, v.z);
+    parts.push(sphere);
+  });
+
+  const merged = mergeParts(parts);
+  if (merged) merged.userData.doodleMesh = true;
+  return merged;
+}
+
+/**
+ * Puffy solid blob from an accurate 2D shape (filled polygons, paths, rects).
+ * Uses Three.js ExtrudeGeometry with a soft bevel — follows the drawing exactly.
+ */
+export function createDoodleSolidGeometry(shape, depth, cseg) {
+  const curveSeg = Math.max(4, Math.min(8, cseg));
+  const bevelSeg = Math.max(2, Math.min(4, Math.round(cseg / 5)));
+  const bevelSize = Math.max(4, depth * 0.32);
+  const coreDepth = Math.max(4, depth * 0.2);
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: coreDepth,
+    bevelEnabled: true,
+    bevelSize,
+    bevelThickness: bevelSize * 0.88,
+    bevelSegments: bevelSeg,
+    bevelOffset: 0,
+    curveSegments: curveSeg,
+    steps: 1,
+  });
+  geo.computeVertexNormals();
+  geo.computeBoundingBox();
+  const bb = geo.boundingBox;
+  if (bb) {
+    const cz = (bb.min.z + bb.max.z) / 2;
+    if (cz) geo.translate(0, 0, -cz);
+  }
+  geo.userData.doodleSolid = true;
+  return geo;
+}
+
+export function mergeDoodleGeometries(parts) {
+  return mergeParts(parts.filter(Boolean));
 }

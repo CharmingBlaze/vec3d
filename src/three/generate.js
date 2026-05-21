@@ -9,10 +9,17 @@ import { fitCameraToCanvas } from './camera.js';
 import { applyViewMode } from './viewMode.js';
 import { createCapsuleGeometry } from './capsule-geometry.js';
 import { createRoundedTubeMesh } from './tube-mesh.js';
+import { createDoodleMesh, createDoodleSolidGeometry, mergeDoodleGeometries } from './doodle-mesh.js';
 import { createRoundedSilhouetteGeometry } from './silhouette-tube.js';
+import { extractRawOutlineFromObject, isClosedFilledOutline } from '../topology/outline-from-object.js';
+import { prepareOutlineForMeshing } from '../topology/prepareOutlineForMeshing.js';
+import { resolveTopologySettings, toPrepareOptions, profileUsesRingBlob } from '../topology/topology-settings.js';
+import { createGameInflatedMesh } from '../topology/createGameInflatedMesh.js';
+import { createSlabExtrudeMesh } from '../topology/createSlabExtrudeMesh.js';
 import { parsePath, flattenPathPoints, sampleSvgPath, isClosedLoop } from '../svg/path.js';
 import { shouldUseTubeMesh, tubeRadiusFromDepth } from '../core/tube-mode.js';
 import { getObjectD3 } from '../core/d3-settings.js';
+import { detach3DGizmo, ensureObjectGroup, update3DGizmoAttachment } from './gizmos.js';
 function disposeMesh(mesh) {
   if (!mesh) return;
   const edge = mesh.userData?.edgeLines;
@@ -26,12 +33,48 @@ function disposeMesh(mesh) {
   else mat?.dispose();
 }
 
+function centerObjectGroupOrigin(group) {
+  if (!group?.children?.length) return;
+  const box = new THREE.Box3();
+  const expandLocalBox = (object, parentMatrix = new THREE.Matrix4()) => {
+    object.updateMatrix();
+    const matrix = parentMatrix.clone().multiply(object.matrix);
+    if (object.geometry) {
+      object.geometry.computeBoundingBox();
+      const geomBox = object.geometry.boundingBox?.clone();
+      if (geomBox) box.union(geomBox.applyMatrix4(matrix));
+    }
+    object.children?.forEach((child) => expandLocalBox(child, matrix));
+  };
+  group.children.forEach((child) => expandLocalBox(child));
+  if (box.isEmpty()) return;
+  const center = box.getCenter(new THREE.Vector3());
+  group.children.forEach((child) => {
+    child.position.sub(center);
+  });
+  group.position.copy(center);
+}
+
+function applyStoredObjectOrientation(group, object) {
+  const q = object?.data?.d3?.orient3d;
+  if (Array.isArray(q) && q.length === 4 && q.every(Number.isFinite)) {
+    group.quaternion.fromArray(q);
+  } else {
+    group.rotation.set(0, 0, 0);
+  }
+}
+
 /** Clear meshes without switching screens */
 export function clear3DMeshes() {
   const { three, meshes3d } = ctx;
+  detach3DGizmo();
   meshes3d.forEach(disposeMesh);
   meshes3d.length = 0;
-  if (three.group) three.group.clear();
+  if (three.group) {
+    three.group.clear();
+    three.gizmoPivot = null;
+  }
+  if (three.objectGroups) three.objectGroups.clear();
   remove2DOverlay();
 }
 
@@ -58,7 +101,9 @@ export function rebuild3D(opts = {}) {
 
   meshes3d.forEach(disposeMesh);
   meshes3d.length = 0;
+  detach3DGizmo();
   three.group.clear();
+  three.objectGroups = new Map();
   remove2DOverlay();
 
   const cx = state.canvasW / 2;
@@ -86,8 +131,9 @@ export function rebuild3D(opts = {}) {
 
     const style = readElementStyle(o);
     const fillCol = style.fill === 'none' ? style.stroke || '#888888' : style.fill;
+    const objectGroup = ensureObjectGroup(o.id);
 
-    const tubeGeometry = buildTubeGeometryForObject(o, style, cx, cy, d3.profile, settings, cseg, d3.depth);
+    const tubeGeometry = buildTubeGeometryForObject(o, style, cx, cy, d3.profile, settings, cseg, d3.depth, d3);
     if (tubeGeometry) {
       const mesh = new THREE.Mesh(tubeGeometry, getThreeMat(fillCol, d3.mat, d3.shine));
       mesh.name = `${o.type || 'object'}_${o.id || meshes3d.length + 1}`;
@@ -99,7 +145,43 @@ export function rebuild3D(opts = {}) {
       mesh.scale.set(1, 1, 1);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      three.group.add(mesh);
+      objectGroup.add(mesh);
+      meshes3d.push(mesh);
+      return;
+    }
+
+    if (d3.profile === 'rounded') return;
+
+    const preparedSlab = buildPreparedSlabMesh(o, style, cx, cy, d3);
+    if (preparedSlab) {
+      const mesh = new THREE.Mesh(preparedSlab, getThreeMat(fillCol, d3.mat, d3.shine));
+      mesh.name = `${o.type || 'object'}_${o.id || meshes3d.length + 1}`;
+      mesh.userData.sourceObjectId = o.id;
+      mesh.userData.sourceName = mesh.name;
+      mesh.userData.fillColor = fillCol;
+      mesh.position.set(0, 0, 0);
+      mesh.rotation.set(0, 0, 0);
+      mesh.scale.set(1, 1, 1);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      objectGroup.add(mesh);
+      meshes3d.push(mesh);
+      return;
+    }
+
+    const preparedGeo = buildPreparedGameMesh(o, style, cx, cy, d3);
+    if (preparedGeo && profileUsesRingBlob(d3.profile)) {
+      const mesh = new THREE.Mesh(preparedGeo, getThreeMat(fillCol, d3.mat, d3.shine));
+      mesh.name = `${o.type || 'object'}_${o.id || meshes3d.length + 1}`;
+      mesh.userData.sourceObjectId = o.id;
+      mesh.userData.sourceName = mesh.name;
+      mesh.userData.fillColor = fillCol;
+      mesh.position.set(0, 0, 0);
+      mesh.rotation.set(0, 0, 0);
+      mesh.scale.set(1, 1, 1);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      objectGroup.add(mesh);
       meshes3d.push(mesh);
       return;
     }
@@ -156,7 +238,7 @@ export function rebuild3D(opts = {}) {
       mesh.scale.set(1, 1, 1);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      three.group.add(mesh);
+      objectGroup.add(mesh);
       meshes3d.push(mesh);
     });
   });
@@ -167,6 +249,11 @@ export function rebuild3D(opts = {}) {
     }
     return false;
   }
+
+  three.objectGroups?.forEach((group, id) => {
+    centerObjectGroupOrigin(group);
+    applyStoredObjectOrientation(group, objs.find((o) => o.id === id));
+  });
 
   if (preserveCamera) {
     three.group.rotation.copy(prevRot);
@@ -181,6 +268,7 @@ export function rebuild3D(opts = {}) {
 
   applyViewMode(state.viewMode3d);
   getScene()?.mark3DClean();
+  update3DGizmoAttachment();
 
   return true;
 }
@@ -197,8 +285,9 @@ function pathIsClosed(o) {
   return /[zZ]\s*$/.test(d);
 }
 
-function getObjectCenterline(o, cseg) {
+function getObjectCenterline(o, cseg, opts = {}) {
   const tag = o.el?.tagName?.toLowerCase();
+  const sampleStep = opts.dense ? 1 : 2;
 
   if (tag === 'line') {
     const p1 = mapToEditor(o.el, +o.el.getAttribute('x1'), +o.el.getAttribute('y1'));
@@ -208,7 +297,7 @@ function getObjectCenterline(o, cseg) {
       { x: p2.x, y: p2.y },
     ];
   }
-  if (tag === 'polyline') {
+  if (tag === 'polyline' || tag === 'polygon') {
     const nums = (o.el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
     const out = [];
     for (let i = 0; i + 1 < nums.length; i += 2) {
@@ -219,7 +308,7 @@ function getObjectCenterline(o, cseg) {
   }
 
   if (tag === 'path' && o.el?.isConnected) {
-    const sampled = sampleSvgPath(o.el, 2);
+    const sampled = sampleSvgPath(o.el, sampleStep);
     if (sampled?.length >= 2) return sampled;
   }
 
@@ -350,7 +439,98 @@ function buildSilhouetteTubeForObject(o, style, cx, cy, profile, settings, cseg,
   return group;
 }
 
-function buildTubeGeometryForObject(o, style, cx, cy, profile, settings, cseg, depth) {
+/** Low-poly flat extrude from prepared outline. */
+function buildPreparedSlabMesh(o, style, cx, cy, d3) {
+  if (d3.profile !== 'slab') return null;
+  if (!hasVisibleFill(style) || !isClosedFilledOutline(o, style)) return null;
+
+  const rawOutline = extractRawOutlineFromObject(o);
+  if (rawOutline.length < 3) return null;
+
+  const topo = resolveTopologySettings(d3 || getObjectD3(o));
+  const prepared = prepareOutlineForMeshing(rawOutline, toPrepareOptions(topo));
+  if (!prepared.isValid) return null;
+
+  const outlineThree = prepared.resampled.map((p) => editorToThree(p.x, p.y, cx, cy));
+  return createSlabExtrudeMesh(outlineThree, {
+    depth: d3.depth,
+    bevel: topo.bevelNorm,
+    mergeEpsilon: topo.mergeEpsilon,
+    loopDetail: topo.loopDetail,
+  });
+}
+
+/** Clean ring mesh from prepared outline — used for filled closed shapes. */
+function buildPreparedGameMesh(o, style, cx, cy, d3) {
+  if (!hasVisibleFill(style) || !isClosedFilledOutline(o, style)) return null;
+
+  const rawOutline = extractRawOutlineFromObject(o);
+  if (rawOutline.length < 3) return null;
+
+  const topo = resolveTopologySettings(d3 || getObjectD3(o));
+  const prepared = prepareOutlineForMeshing(rawOutline, toPrepareOptions(topo));
+  if (!prepared.isValid) return null;
+
+  const outlineThree = prepared.resampled.map((p) => editorToThree(p.x, p.y, cx, cy));
+  return createGameInflatedMesh(outlineThree, {
+    depth: d3.depth,
+    inflation: topo.inflation,
+    rings: topo.rings,
+    bevel: topo.bevelNorm,
+    endRound: topo.endRound,
+    sideLoops: topo.sideLoops,
+    innerRingStart: topo.innerRingStart,
+    evenRings: topo.evenRings,
+    mergeEpsilon: topo.mergeEpsilon,
+    loopDetail: topo.loopDetail,
+    topoPreset: topo.preset,
+  });
+}
+
+/** Rounded profile: game-ready ring mesh for fills, cleaned tube for strokes. */
+function buildDoodleGeometryForObject(o, style, cx, cy, cseg, depth, d3) {
+  const prepared = buildPreparedGameMesh(o, style, cx, cy, { ...d3, depth });
+  if (prepared) return prepared;
+
+  const hasFill = hasVisibleFill(style);
+  if (hasFill) {
+    const shapes = elemToThreeShapes(o.el, cx, cy);
+    if (shapes.length) {
+      const parts = shapes.map((shape) => createDoodleSolidGeometry(shape, depth, Math.min(cseg, 8)));
+      const merged = mergeDoodleGeometries(parts);
+      if (merged) return merged;
+    }
+  }
+
+  const centerline = getObjectCenterline(o, cseg, { dense: true });
+  if (centerline.length < 2) return null;
+
+  const closed = isClosedCenterline(centerline, o);
+  const radius = tubeRadiusFromDepth(style.sw, depth, 'rounded');
+  const pathLen = centerline.reduce((sum, p, i) => {
+    if (i === 0) return 0;
+    const prev = centerline[i - 1];
+    return sum + Math.hypot(p.x - prev.x, p.y - prev.y);
+  }, 0);
+
+  try {
+    return createDoodleMesh(centerline, radius, cx, cy, {
+      radialSegments: Math.max(6, Math.min(10, cseg)),
+      tubularSegments: Math.max(16, Math.min(36, Math.ceil(pathLen / 4))),
+      closed,
+      curveTension: 0.35,
+    });
+  } catch (err) {
+    console.warn('Doodle mesh error', err);
+    return null;
+  }
+}
+
+function buildTubeGeometryForObject(o, style, cx, cy, profile, settings, cseg, depth, d3) {
+  if (profile === 'rounded') {
+    return buildDoodleGeometryForObject(o, style, cx, cy, cseg, depth, d3);
+  }
+
   const silhouette = buildSilhouetteTubeForObject(o, style, cx, cy, profile, settings, cseg, depth);
   if (silhouette) return silhouette;
 
@@ -416,11 +596,13 @@ function profileSettings(profile, raw) {
   if (profile === 'slab') {
     return {
       bevel: userBevel,
-      thickness,
-      bevelSegments: userBseg,
+      thickness: 0,
+      bevelSegments: 1,
       steps: 1,
-      maxCurveSegments: endCaps ? 16 : undefined,
-      ...endCapFields,
+      maxCurveSegments: 24,
+      dome: 0,
+      bodyDepth: raw.depth,
+      unifiedCaps: false,
     };
   }
   if (profile === 'capsule') {
@@ -442,6 +624,20 @@ function profileSettings(profile, raw) {
       bevelSegments: 1,
       steps: 1,
       maxCurveSegments: 32,
+      dome: 0,
+      bodyDepth: raw.depth,
+      unifiedCaps: false,
+    };
+  }
+  if (profile === 'rounded') {
+    return {
+      tubeProfile: true,
+      doodleProfile: true,
+      bevel: 0,
+      thickness: 0,
+      bevelSegments: 1,
+      steps: 1,
+      maxCurveSegments: 8,
       dome: 0,
       bodyDepth: raw.depth,
       unifiedCaps: false,

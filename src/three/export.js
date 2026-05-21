@@ -1,5 +1,6 @@
 import { THREE } from './setup.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ctx } from '../core/context.js';
 import { flushRealtime3D } from './realtime.js';
 
@@ -29,13 +30,14 @@ function colorFromMesh(mesh) {
 }
 
 function prepareGeometryForExport(mesh, color) {
-  const geo = mesh.geometry.clone();
+  let geo = mesh.geometry.clone();
   geo.applyMatrix4(mesh.matrix);
   geo.applyMatrix4(new THREE.Matrix4().makeScale(
     BLENDER_EXPORT_SCALE,
     BLENDER_EXPORT_SCALE,
     BLENDER_EXPORT_SCALE,
   ));
+  geo = mergeVertices(geo, 0.00005);
   if (!geo.getAttribute('normal')) geo.computeVertexNormals();
   else {
     const normalMatrix = new THREE.Matrix3().getNormalMatrix(mesh.matrix);
@@ -117,6 +119,8 @@ function faceToken(v, vt, vn, offsets) {
 function writeObj(meshes) {
   let obj = '# Vec3D OBJ export\n';
   obj += `# Export scale: ${BLENDER_EXPORT_SCALE} Blender units per editor pixel.\n`;
+  obj += '# Topology: concentric quad ring loops — select edge loops in Blender with Alt+Click.\n';
+  obj += '# Tip: use Topology > Blender Edit, Rings 3, Boundary Pts 20-28 for easiest editing.\n';
   obj += '# Keep vec3d_model.obj and vec3d_model.mtl in the same folder for material colors.\n';
   obj += '# Vertex colors are also included on v lines for Blender-compatible OBJ importers.\n';
   obj += '# Import into Blender with Forward: -Z Forward, Up: Y Up if needed.\n';

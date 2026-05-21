@@ -1,10 +1,10 @@
 export const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const PALETTE = [
-  '#ff4d6d', '#ff9100', '#ffd60a', '#00e676', '#00e5ff', '#6979f8',
-  '#c77dff', '#ffffff', '#cccccc', '#888888', '#444444', '#000000',
-  '#e63946', '#2ec4b6', '#ff9f1c', '#457b9d', '#a8dadc', '#1d3557',
-  '#f72585', '#7209b7', '#3a0ca3', '#4361ee', '#4cc9f0', '#06d6a0',
+  '#ff6b35', '#f7c59f', '#ffd60a', '#06d6a0', '#4cc9f0', '#6979f8',
+  '#c77dff', '#ff4d6d', '#ffffff', '#888888', '#2d2d2d', '#000000',
+  '#e63946', '#2ec4b6', '#ff9f1c', '#457b9d', '#1d3557', '#f72585',
+  '#00e676', '#00e5ff', '#a855f7', '#fb923c', '#a8dadc', '#7209b7',
 ];
 
 export const TOOL_SHORTCUTS = {
@@ -20,3 +20,6 @@ export const TOOL_SHORTCUTS = {
 };
 
 export const DRAW_TOOLS = ['line', 'shape'];
+
+/** Minimum px between freehand capture points */
+export const FREEHAND_MIN_POINT_SPACING = 4;

@@ -1,7 +1,7 @@
 import { ctx, getObj } from '../core/context.js';
 import { svgEl } from '../svg/elements.js';
 import { parsePath, buildPath } from '../svg/path.js';
-import { getEditorBBox } from '../svg/geometry.js';
+import { getEditorBBox, mapToEditor, mapFromEditor } from '../svg/geometry.js';
 import { onHandleDown, onNodeHandleDown, onMoveSurfaceDown } from '../canvas/handlers.js';
 import { scheduleRealtime3D } from '../three/realtime.js';
 
@@ -112,13 +112,14 @@ export function showNodeHandles() {
     const tag = o.el.tagName.toLowerCase();
     if (!['path', 'polygon', 'polyline', 'rect', 'ellipse', 'circle', 'line'].includes(tag)) return;
     appendMoveSurface(getEditorBBox(o.el));
-    const pts = tag === 'path'
+    const localPts = tag === 'path'
       ? (o.type === 'tube' && o.data?.centerline?.length
           ? o.data.centerline.map((p) => ({ ...p }))
           : parsePath(o.el.getAttribute('d')))
       : tag === 'polygon' || tag === 'polyline'
         ? parsePoints(o.el.getAttribute('points'))
         : primitivePoints(o.el, tag);
+    const pts = mapPointsToEditor(o.el, localPts);
     state.nodeHandles = pts;
     pts.forEach((pt, i) => {
       if (tag === 'path' && pt.c2x !== undefined) {
@@ -191,14 +192,15 @@ export function updatePath(oid, nodeKind = 'path') {
   const o = getObj(oid);
   if (!o) return;
   const tag = nodeKind || o.el.tagName.toLowerCase();
+  const localPts = mapPointsFromEditor(o.el, ctx.state.nodeHandles);
   if (tag === 'polygon' || tag === 'polyline') {
-    o.el.setAttribute('points', buildPoints(ctx.state.nodeHandles));
-    o.data = { ...(o.data || {}), pts: [...ctx.state.nodeHandles] };
+    o.el.setAttribute('points', buildPoints(localPts));
+    o.data = { ...(o.data || {}), pts: [...localPts] };
     notifyRealtimeGeometry(oid);
     return;
   }
   if (tag === 'rect') {
-    const bb = bboxFromPoints(ctx.state.nodeHandles);
+    const bb = bboxFromPoints(localPts);
     o.el.setAttribute('x', bb.x);
     o.el.setAttribute('y', bb.y);
     o.el.setAttribute('width', Math.max(1, bb.width));
@@ -207,7 +209,7 @@ export function updatePath(oid, nodeKind = 'path') {
     return;
   }
   if (tag === 'ellipse' || tag === 'circle') {
-    const bb = bboxFromPoints(ctx.state.nodeHandles);
+    const bb = bboxFromPoints(localPts);
     o.el.setAttribute('cx', bb.x + bb.width / 2);
     o.el.setAttribute('cy', bb.y + bb.height / 2);
     if (tag === 'circle') {
@@ -220,21 +222,20 @@ export function updatePath(oid, nodeKind = 'path') {
     return;
   }
   if (tag === 'line') {
-    const pts = ctx.state.nodeHandles;
-    if (pts[0] && pts[1]) {
-      o.el.setAttribute('x1', pts[0].x);
-      o.el.setAttribute('y1', pts[0].y);
-      o.el.setAttribute('x2', pts[1].x);
-      o.el.setAttribute('y2', pts[1].y);
+    if (localPts[0] && localPts[1]) {
+      o.el.setAttribute('x1', localPts[0].x);
+      o.el.setAttribute('y1', localPts[0].y);
+      o.el.setAttribute('x2', localPts[1].x);
+      o.el.setAttribute('y2', localPts[1].y);
     }
     notifyRealtimeGeometry(oid);
     return;
   }
-  o.el.setAttribute('d', buildPath(ctx.state.nodeHandles));
+  o.el.setAttribute('d', buildPath(localPts));
   if (o.type === 'tube') {
     o.data = {
       ...(o.data || {}),
-      centerline: ctx.state.nodeHandles.map((p) => ({ x: p.x, y: p.y })),
+      centerline: localPts.map((p) => ({ x: p.x, y: p.y })),
     };
   }
   notifyRealtimeGeometry(oid);
@@ -298,4 +299,48 @@ function bboxFromPoints(pts) {
   const x = Math.min(...xs);
   const y = Math.min(...ys);
   return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+}
+
+function mapPointToEditor(el, pt) {
+  const out = { ...pt };
+  const p = mapToEditor(el, pt.x, pt.y);
+  out.x = p.x;
+  out.y = p.y;
+  if (pt.c1x !== undefined) {
+    const c1 = mapToEditor(el, pt.c1x, pt.c1y);
+    out.c1x = c1.x;
+    out.c1y = c1.y;
+  }
+  if (pt.c2x !== undefined) {
+    const c2 = mapToEditor(el, pt.c2x, pt.c2y);
+    out.c2x = c2.x;
+    out.c2y = c2.y;
+  }
+  return out;
+}
+
+function mapPointFromEditor(el, pt) {
+  const out = { ...pt };
+  const p = mapFromEditor(el, pt.x, pt.y);
+  out.x = p.x;
+  out.y = p.y;
+  if (pt.c1x !== undefined) {
+    const c1 = mapFromEditor(el, pt.c1x, pt.c1y);
+    out.c1x = c1.x;
+    out.c1y = c1.y;
+  }
+  if (pt.c2x !== undefined) {
+    const c2 = mapFromEditor(el, pt.c2x, pt.c2y);
+    out.c2x = c2.x;
+    out.c2y = c2.y;
+  }
+  return out;
+}
+
+function mapPointsToEditor(el, pts) {
+  return pts.map((pt) => mapPointToEditor(el, pt));
+}
+
+function mapPointsFromEditor(el, pts) {
+  return pts.map((pt) => mapPointFromEditor(el, pt));
 }

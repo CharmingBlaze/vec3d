@@ -1,7 +1,8 @@
 import { THREE } from './setup.js';
-import { ctx } from '../core/context.js';
+import { ctx, getObj } from '../core/context.js';
 import { getThreeMat, updateSceneLights } from './materials.js';
 import { renderThreeFrame } from './engine.js';
+import { getObjectD3 } from '../core/d3-settings.js';
 
 function removeEdgeLines(mesh) {
   const line = mesh.userData.edgeLines;
@@ -12,19 +13,42 @@ function removeEdgeLines(mesh) {
   mesh.userData.edgeLines = null;
 }
 
-function addEdgeLines(mesh) {
+function isGameTopologyMesh(mesh) {
+  return !!(mesh.geometry?.userData?.gameMesh || mesh.geometry?.userData?.topologyPositions?.length);
+}
+
+function addTopologyLoopLines(mesh, color = 0xffa12a) {
   if (mesh.userData.edgeLines) return;
   const topology = mesh.geometry?.userData?.topologyPositions;
-  const edges = topology?.length
-    ? new THREE.BufferGeometry().setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute(topology, 3),
-    )
-    : new THREE.EdgesGeometry(mesh.geometry, 18);
+  if (!topology?.length) return false;
+
+  const edges = new THREE.BufferGeometry().setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(topology, 3),
+  );
   const mat = new THREE.LineBasicMaterial({
-    color: topology?.length ? 0xffa12a : 0x0a0a12,
+    color,
     transparent: true,
-    opacity: topology?.length ? 0.95 : 0.9,
+    opacity: 0.95,
+  });
+  const line = new THREE.LineSegments(edges, mat);
+  line.renderOrder = 2;
+  mesh.add(line);
+  mesh.userData.edgeLines = line;
+  return true;
+}
+
+function addEdgeLines(mesh, threshold = 18) {
+  if (mesh.userData.edgeLines) return;
+  if (addTopologyLoopLines(mesh)) return;
+
+  const isDoodleSolid = mesh.geometry?.userData?.doodleSolid || mesh.geometry?.userData?.gameMesh;
+  const edgeThreshold = isDoodleSolid ? 42 : threshold;
+  const edges = new THREE.EdgesGeometry(mesh.geometry, edgeThreshold);
+  const mat = new THREE.LineBasicMaterial({
+    color: 0x0a0a12,
+    transparent: true,
+    opacity: 0.9,
   });
   const line = new THREE.LineSegments(edges, mat);
   line.renderOrder = 1;
@@ -37,19 +61,39 @@ function materialTypeForMode(mode) {
   if (mode === 'textured') {
     return mat === 'wireframe' || mat === 'flat' ? 'phong' : mat;
   }
-  if (mode === 'solid' || mode === 'solid-lines') return 'flat';
+  if (mode === 'solid' || mode === 'solid-loops' || mode === 'solid-lines') return 'flat';
+  if (mode === 'loops') return 'wireframe';
   return 'wireframe';
 }
 
+function resolveMeshMaterialOpts(mesh) {
+  const sourceId = mesh.userData?.sourceObjectId;
+  const o = sourceId ? getObj(sourceId) : null;
+  const d3 = o ? getObjectD3(o) : null;
+  return {
+    mat: d3?.mat ?? ctx.dom.d3Mat?.value ?? 'flat',
+    shine: d3?.shine ?? +(ctx.dom.d3Shine?.value ?? 100),
+  };
+}
+
+function resolveMatTypeForView(mode, userMat) {
+  if (mode === 'wireframe' || mode === 'loops') return 'wireframe';
+  if (mode === 'textured') {
+    return userMat === 'wireframe' || userMat === 'flat' ? 'phong' : userMat;
+  }
+  return userMat || 'flat';
+}
+
 function setMeshMaterial(mesh, color, mode) {
-  const next = getThreeMat(color, materialTypeForMode(mode));
+  const { mat, shine } = resolveMeshMaterialOpts(mesh);
+  const next = getThreeMat(color, resolveMatTypeForView(mode, mat), shine);
   const isTopologyMesh = !!mesh.geometry?.userData?.topologyPositions?.length;
   const isSilhouetteCage = !!mesh.geometry?.userData?.silhouetteSolid;
 
-  if (isTopologyMesh && (mode === 'wireframe' || (isSilhouetteCage && mode === 'solid-lines'))) {
+  if (isTopologyMesh && (mode === 'wireframe' || mode === 'loops' || (isSilhouetteCage && mode === 'solid-lines'))) {
     next.wireframe = false;
     next.transparent = true;
-    next.opacity = isSilhouetteCage ? 0.08 : 0.16;
+    next.opacity = mode === 'loops' ? 0.04 : isSilhouetteCage ? 0.08 : 0.16;
     next.depthWrite = false;
   }
   if (mesh.material && mesh.material !== next) mesh.material.dispose();
@@ -74,13 +118,30 @@ export function applyViewMode(mode = ctx.state.viewMode3d) {
     removeEdgeLines(mesh);
 
     if (mode === 'wireframe') {
+      if (isGameTopologyMesh(mesh)) {
+        setMeshMaterial(mesh, color, 'flat');
+        mesh.material.transparent = true;
+        mesh.material.opacity = 0.12;
+        mesh.material.depthWrite = false;
+        addTopologyLoopLines(mesh, 0xffa12a);
+        return;
+      }
       setMeshMaterial(mesh, color, 'wireframe');
-      if (mesh.geometry?.userData?.topologyPositions?.length) addEdgeLines(mesh);
+      return;
+    }
+
+    if (mode === 'loops') {
+      setMeshMaterial(mesh, color, 'loops');
+      addTopologyLoopLines(mesh) || addEdgeLines(mesh, 40);
       return;
     }
 
     setMeshMaterial(mesh, color, mode);
-    if (mode === 'solid-lines') addEdgeLines(mesh);
+
+    if (mode === 'solid-loops' || mode === 'solid-lines') {
+      if (isGameTopologyMesh(mesh)) addTopologyLoopLines(mesh);
+      else addEdgeLines(mesh);
+    }
   });
 
   syncViewModeUi(mode);

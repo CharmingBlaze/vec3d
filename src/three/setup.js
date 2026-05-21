@@ -6,7 +6,7 @@ export * as THREE from 'three';
 
 /** Renderer defaults used across the app */
 export const THREE_CONFIG = {
-  clearColor: 0x0e0f18,
+  clearColor: 0x111318,
   cameraFov: 50,
   cameraNear: 0.1,
   cameraFar: 50000,

@@ -1,6 +1,5 @@
 import { ctx } from '../core/context.js';
 import { PALETTE } from '../core/constants.js';
-import { updateSelected } from '../editor/objects.js';
 import { refreshLayers } from './layers.js';
 import { setZoom, fit2DView } from '../svg/coordinates.js';
 import { showHandles, showNodeHandles } from '../editor/handles.js';
@@ -17,6 +16,11 @@ import {
   profilePresetPatch,
   getObjectD3,
 } from '../core/d3-settings.js';
+import {
+  applyStyleChange,
+  isEditingSelection,
+} from '../core/object-settings.js';
+import { topoPresetD3Patch } from '../topology/topology-settings.js';
 
 async function reset3DViewLazy() {
   const { reset3DView } = await import('../three/camera.js');
@@ -53,42 +57,73 @@ async function reset3DRotationLazy() {
   reset3DRotation();
 }
 
+async function setGizmoModeLazy(mode) {
+  const { setGizmoMode } = await import('../three/gizmos.js');
+  setGizmoMode(mode);
+}
+
+function syncColorSwatchSelection(hex, target = colorTarget) {
+  const norm = (hex || '').toLowerCase();
+  document.querySelectorAll('.psw, .canvas-csw').forEach((el) => {
+    const match = (el.style.background || '').toLowerCase() === norm
+      || (el.dataset.color || '').toLowerCase() === norm;
+    el.classList.toggle('on', match && target === 'fill');
+  });
+}
+
+function mountPaletteSwatches(container, className, onPick) {
+  if (!container) return;
+  container.innerHTML = '';
+  PALETTE.forEach((c) => {
+    const d = document.createElement('button');
+    d.type = 'button';
+    d.className = className;
+    d.style.background = c;
+    d.dataset.color = c;
+    d.title = c;
+    d.onclick = () => onPick(c);
+    container.appendChild(d);
+  });
+}
+
 export function initControls() {
   const { state, dom } = ctx;
 
-  const palEl = dom.palette;
-  PALETTE.forEach((c) => {
-    const d = document.createElement('div');
-    d.className = 'psw';
-    d.style.background = c;
-    d.onclick = () => {
-      applyColor(c);
-      refreshLayers();
-    };
-    palEl.appendChild(d);
+  mountPaletteSwatches(dom.palette, 'psw', (c) => {
+    colorTarget = 'fill';
+    applyColor(c);
+    refreshLayers();
   });
 
+  mountPaletteSwatches(dom.canvasColorStrip, 'canvas-csw', (c) => {
+    colorTarget = 'fill';
+    applyColor(c);
+    refreshLayers();
+  });
+
+  syncColorSwatchSelection(state.fill, 'fill');
+
   dom.fillPicker.oninput = (e) => {
-    state.fill = e.target.value;
-    dom.csFg.style.background = e.target.value;
-    if (state.selected.length) updateSelected('fill', e.target.value);
+    const val = e.target.value;
+    dom.csFg.style.background = val;
+    const { scope, changed } = applyStyleChange({ fill: val, fillMode: 'solid' });
+    if (scope === 'selection' && changed) scheduleRealtime3D();
   };
   dom.strokePicker.oninput = (e) => {
-    state.stroke = e.target.value;
-    dom.csBg.style.background = e.target.value;
-    if (state.selected.length) updateSelected('stroke', e.target.value);
+    const val = e.target.value;
+    dom.csBg.style.background = val;
+    const { changed } = applyStyleChange({ stroke: val });
+    if (changed) scheduleRealtime3D();
   };
   initColorPopup();
   initCanvasControls();
 
   bindSlider('slSw', 'vvSw', 'strokeW', (v) => {
-    if (state.selected.length) {
-      updateSelected('strokeW', v);
-      scheduleRealtime3D();
-    }
+    const { changed } = applyStyleChange({ strokeW: v });
+    if (changed) scheduleRealtime3D();
   });
   bindSlider('slOp', 'vvOp', 'opacity', (v) => {
-    if (state.selected.length) updateSelected('opacity', v / 100);
+    applyStyleChange({ opacity: v });
   });
   dom.slSides.oninput = (e) => {
     state.sides = +e.target.value;
@@ -98,29 +133,23 @@ export function initControls() {
   init3DPanelControls();
 
   dom.fillMode.onchange = (e) => {
-    state.fillMode = e.target.value;
-    const ids = [];
-    state.selected.forEach((id) => {
-      const o = getObj(id);
-      if (!o) return;
-      ids.push(id);
-      const fill = e.target.value === 'none' ? 'none' : state.fill;
-      o.fill = fill;
-      o.el.setAttribute('fill', fill);
-    });
-    if (ids.length) ctx.scene?.notifyStyle(ids);
+    const fillMode = e.target.value;
+    const fill = fillMode === 'none' ? 'none' : ctx.state.fill;
+    const { changed } = applyStyleChange({ fillMode, fill });
+    if (changed) scheduleRealtime3D();
   };
+  if (dom.freehandAutoClose) {
+    dom.freehandAutoClose.checked = state.freehandAutoClose;
+    dom.freehandAutoClose.onchange = (e) => {
+      state.freehandAutoClose = e.target.checked;
+    };
+  }
 
   dom.zoomInBtn.onclick = () => setZoom(state.zoom * 1.25);
   dom.zoomOutBtn.onclick = () => setZoom(state.zoom * 0.8);
-  dom.zoomFit.onclick = () => {
-    if (ctx.state.activeScreen === '3d') {
-      reset3DViewLazy();
-      return;
-    }
-    fit2DView();
-  };
+  dom.zoomFit.onclick = () => fit2DView();
   if (dom.zoomFit3d) dom.zoomFit3d.onclick = () => reset3DViewLazy();
+  init3DGizmoControls();
 
   dom.lnDel.onclick = () => deleteSelected();
   dom.lnUp.onclick = () => {
@@ -132,6 +161,28 @@ export function initControls() {
     saveHistory();
   };
 
+}
+
+function init3DGizmoControls() {
+  const { dom, state } = ctx;
+  const buttons = [
+    ['translate', dom.gizmoTranslate],
+    ['rotate', dom.gizmoRotate],
+    ['scale', dom.gizmoScale],
+  ];
+  const sync = () => {
+    buttons.forEach(([mode, btn]) => btn?.classList.toggle('on', state.gizmoMode === mode));
+  };
+
+  buttons.forEach(([mode, btn]) => {
+    if (!btn) return;
+    btn.onclick = () => {
+      state.gizmoMode = mode;
+      sync();
+      setGizmoModeLazy(mode);
+    };
+  });
+  sync();
 }
 
 function syncViewBgDot(picker, dot) {
@@ -229,13 +280,12 @@ function initColorPopup() {
 
   dom.colorNone.onclick = () => {
     if (colorTarget === 'fill') {
-      ctx.state.fill = 'none';
-      ctx.dom.csFg.style.background = 'transparent';
-      updateSelected('fill', 'none');
+      dom.csFg.style.background = 'transparent';
+      const { changed } = applyStyleChange({ fill: 'none', fillMode: 'none' });
+      if (changed) scheduleRealtime3D();
     } else {
-      ctx.state.stroke = 'none';
-      ctx.dom.csBg.style.background = 'transparent';
-      updateSelected('stroke', 'none');
+      dom.csBg.style.background = 'transparent';
+      applyStyleChange({ stroke: 'none' });
     }
     refreshLayers();
   };
@@ -261,18 +311,19 @@ function pickFromRect(e) {
 }
 
 function applyColor(hex) {
-  const { state, dom } = ctx;
+  const { dom } = ctx;
   dom.colorHex.value = hex;
   if (colorTarget === 'fill') {
-    state.fill = hex;
     dom.fillPicker.value = hex;
     dom.csFg.style.background = hex;
-    updateSelected('fill', hex);
+    const { changed } = applyStyleChange({ fill: hex, fillMode: 'solid' });
+    syncColorSwatchSelection(hex, 'fill');
+    if (changed) scheduleRealtime3D();
   } else {
-    state.stroke = hex;
     dom.strokePicker.value = hex;
     dom.csBg.style.background = hex;
-    updateSelected('stroke', hex);
+    const { changed } = applyStyleChange({ stroke: hex });
+    if (changed) scheduleRealtime3D();
   }
 }
 
@@ -425,21 +476,29 @@ export function initToolbar() {
 function init3DPanelControls() {
   const { dom, state } = ctx;
 
+  const GEOMETRY_KEYS = new Set([
+    'depth', 'bevel', 'round', 'bseg', 'cseg', 'inflation',
+    'topoPreset', 'profile', 'strokeMode',
+  ]);
+
+  const refreshAll3D = async () => {
+    if (!(await refresh3DAppearanceLazy())) scheduleRealtime3D();
+  };
+
   const commitD3 = (partial, opts = {}) => {
     if (ctx._syncingD3Panel) return;
-    const needsRebuild = applyD3ToSelection(partial);
+    const updated = applyD3ToSelection(partial);
     if (opts.syncPanel && state.selected.length === 1) {
       applyD3ToDom(getObjectD3(getObj(state.selected[0])));
     }
-    if (needsRebuild) scheduleRealtime3D();
+    const affectsGeometry = opts.appearanceOnly
+      ? false
+      : Object.keys(partial).some((k) => GEOMETRY_KEYS.has(k));
+    if (updated && affectsGeometry) scheduleRealtime3D();
+    else if (updated && opts.appearanceOnly) refreshAll3D();
   };
 
   const commitD3FromDom = () => commitD3(readD3FromDom(dom));
-
-  const rebuildOrRefreshSelected = async () => {
-    if (!state.selected.length) return;
-    if (!(await refresh3DAppearanceLazy())) scheduleRealtime3D();
-  };
 
   const bindD3Slider = (id, onChange) => {
     const el = dom[id];
@@ -466,32 +525,40 @@ function init3DPanelControls() {
   });
   bindD3Slider('d3Round', () => {
     const partial = { round: +dom.d3Round.value };
-    if (partial.round > 0 && +dom.d3Cseg.value < 12) {
-      partial.cseg = 12;
-      dom.d3Cseg.value = 12;
-      dom.vvCseg.textContent = '12';
+    if (partial.round > 0 && +dom.d3Cseg.value < 24) {
+      partial.cseg = 24;
+      dom.d3Cseg.value = 24;
+      dom.vvCseg.textContent = '24';
     }
     commitD3(partial);
   });
   bindD3Slider('d3Bseg', () => commitD3({ bseg: +dom.d3Bseg.value }));
   bindD3Slider('d3Cseg', () => commitD3({ cseg: +dom.d3Cseg.value }));
+  bindD3Slider('d3Inflation', () => commitD3({ inflation: +dom.d3Inflation.value }));
+
+  if (dom.d3TopoPreset) {
+    dom.d3TopoPreset.onchange = () => {
+      const base = state.selected.length && getObj(state.selected[0])
+        ? getObjectD3(getObj(state.selected[0]))
+        : readD3FromDom(dom);
+      const patched = topoPresetD3Patch(dom.d3TopoPreset.value, base);
+      applyD3ToDom(patched);
+      const needsRebuild = applyD3ToSelection(patched);
+      if (needsRebuild) scheduleRealtime3D();
+    };
+  }
 
   if (dom.d3StrokeMode) {
     dom.d3StrokeMode.onchange = () => {
       const strokeMode = dom.d3StrokeMode.value;
-      if (state.selected.length) {
-        commitD3({ strokeMode });
-        if (strokeMode === 'tube') state.strokeMeshMode = 'tube';
-      } else {
-        state.strokeMeshMode = strokeMode;
-        applyD3ToSelection({ strokeMode });
-      }
+      const updated = applyD3ToSelection({ strokeMode });
+      if (!isEditingSelection()) ctx.state.strokeMeshMode = strokeMode;
+      if (updated) scheduleRealtime3D();
     };
   }
 
   bindD3Slider('d3Shine', () => {
-    commitD3({ shine: +dom.d3Shine.value });
-    rebuildOrRefreshSelected();
+    commitD3({ shine: +dom.d3Shine.value }, { appearanceOnly: true });
   });
 
   if (dom.d3Light) {
@@ -509,11 +576,10 @@ function init3DPanelControls() {
         setViewMode3dLazy('wireframe');
         return;
       }
-      if (mat !== 'flat' && (state.viewMode3d === 'solid' || state.viewMode3d === 'solid-lines')) {
+      if (mat !== 'flat' && (state.viewMode3d === 'solid' || state.viewMode3d === 'solid-loops')) {
         setViewMode3dLazy('textured');
       }
-      commitD3({ mat });
-      rebuildOrRefreshSelected();
+      commitD3({ mat }, { appearanceOnly: true });
     };
   }
 
@@ -524,7 +590,9 @@ function init3DPanelControls() {
         : readD3FromDom(dom);
       const patched = profilePresetPatch(dom.d3Profile.value, base);
       applyD3ToDom(patched);
-      if (patched.profile === 'tube') state.strokeMeshMode = 'tube';
+      if (!isEditingSelection()) {
+        ctx.state.strokeMeshMode = patched.strokeMode ?? ctx.state.strokeMeshMode;
+      }
       const needsRebuild = applyD3ToSelection(patched);
       if (needsRebuild) flushRealtime3D();
       else if (state.selected.length) saveHistory();

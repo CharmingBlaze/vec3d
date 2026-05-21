@@ -4,6 +4,7 @@ import { SceneEvents } from './scene-bus.js';
 import { scheduleRealtime3D, flushRealtime3D } from '../three/realtime.js';
 import { refreshLayers, updateStatus } from '../ui/layers.js';
 import { highlightSelectedFromScene } from '../editor/selection.js';
+import { update3DGizmoAttachment } from '../three/gizmos.js';
 
 /** Create scene graph and wire all subsystems through the event bus */
 export function initSceneGraph() {
@@ -21,6 +22,7 @@ export function initSceneGraph() {
   scene.on(SceneEvents.SELECTION, () => {
     highlightSelectedFromScene();
     updateStatus();
+    update3DGizmoAttachment();
   });
   scene.on(SceneEvents.STYLE, live3D);
   scene.on(SceneEvents.HISTORY, () => {

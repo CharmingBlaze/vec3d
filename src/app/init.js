@@ -5,18 +5,26 @@ import { initCanvasEvents } from '../canvas/events.js';
 import { initControls, initToolbar } from '../ui/controls.js';
 import { initMenuDropdowns } from '../ui/menus.js';
 import { initDocumentD3FromDom } from '../core/d3-settings.js';
+import { initDocumentStyleFromState, syncPanelFromContext } from '../core/object-settings.js';
 import { initPathOps, importSVG, exportSVG } from '../io/svg-io.js';
 import { initSceneGraph } from '../scene/init.js';
 import { saveHistory } from '../editor/history.js';
 import { initSceneSyncObserver } from '../editor/scene-sync.js';
 import { refreshLayers, updateStatus } from '../ui/layers.js';
 import { fit2DView } from '../svg/coordinates.js';
+import { initCanvasGrid } from '../svg/canvas-grid.js';
 import { deleteSelected } from '../editor/objects.js';
 import { undo, redo } from '../editor/history.js';
+import { copySelection, pasteClipboard, flipSelected } from '../editor/clipboard.js';
+import { initSplitView } from '../ui/split-view.js';
+import { initSplitView3D, show2DView } from '../three/view.js';
+import { resizeThree } from '../three/engine.js';
 
 export function initApp() {
   cacheDom();
+  initDocumentStyleFromState();
   initDocumentD3FromDom();
+  syncPanelFromContext();
   initSceneGraph();
   initControls();
   initToolbar();
@@ -26,13 +34,16 @@ export function initApp() {
   initMenuDropdowns();
   initSceneSyncObserver();
   wireTopbar();
+  initSplitView();
+  initCanvasGrid();
   fit2DView();
   saveHistory();
   refreshLayers();
   updateStatus();
+  initSplitView3D();
   window.addEventListener('resize', () => {
     if (!ctx.three.renderer) return;
-    import('../three/engine.js').then(({ resizeThree }) => resizeThree());
+    resizeThree();
   });
 }
 
@@ -49,7 +60,7 @@ function wireTopbar() {
     if (three.group) {
       import('../three/generate.js').then(({ clear3DMeshes }) => clear3DMeshes());
     }
-    show2DPane();
+    show2DView();
     fit2DView();
     refreshLayers();
   };
@@ -60,21 +71,15 @@ function wireTopbar() {
   dom.tbUndo.onclick = undo;
   dom.tbRedo.onclick = redo;
   dom.tbDel.onclick = deleteSelected;
+  dom.tbCopy.onclick = copySelection;
+  dom.tbPaste.onclick = pasteClipboard;
+  dom.tbFlipH.onclick = () => flipSelected('x');
+  dom.tbFlipV.onclick = () => flipSelected('y');
 
-  dom.vtab2d.onclick = show2DPane;
+  dom.vtab2d.onclick = () => import('../three/view.js').then(({ show2DView }) => show2DView());
   dom.vtab3d.onclick = () => import('../three/view.js').then(({ show3DView }) => show3DView());
   dom.btnExportObj.onclick = () => import('../three/export.js').then(({ exportOBJ }) => exportOBJ());
   if (dom.btnExportGltf) {
     dom.btnExportGltf.onclick = () => import('../three/export.js').then(({ exportGLTF }) => exportGLTF());
   }
-}
-
-function show2DPane() {
-  const { dom, state } = ctx;
-  state.activeScreen = '2d';
-  dom.app.classList.remove('mode-3d');
-  dom.carea2d.classList.add('on');
-  dom.carea3d.classList.remove('on');
-  dom.vtab2d.classList.add('on');
-  dom.vtab3d.classList.remove('on');
 }
