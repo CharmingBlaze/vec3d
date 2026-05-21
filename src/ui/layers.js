@@ -90,13 +90,13 @@ export function updateStatus() {
   dom.sbSel.textContent = state.selected.length
     ? `Selected: ${state.selected.length}`
     : 'No selection';
-  refreshLayers();
 }
 
 function friendlyType(type) {
   const names = {
     path: 'Bezier path',
     tube: 'Rounded tube',
+    midtube: 'Mid-poly tube',
     polygon: 'Polygon',
     polyline: 'Polyline',
     rect: 'Rectangle',
@@ -113,6 +113,7 @@ function layerMeta(o) {
   const fill = o.fill === 'none' ? 'outline' : o.fill || 'fill';
   const opacity = Math.round((o.op ?? 1) * 100);
   const parts = [`${fill}`, `${opacity}%`];
+  if (o.data?.primitive3d) parts.unshift(o.data.primitive3d);
   if (o.locked) parts.push('locked');
   if (!isVisible(o)) parts.push('hidden');
   return parts.join(' · ');

@@ -1,8 +1,33 @@
 import { ctx, getObj } from '../core/context.js';
+import { pauseSceneSync, resumeSceneSync } from '../editor/scene-sync.js';
 import { getEditorBBox } from './geometry.js';
 
 export function defaultTransform() {
   return { tx: 0, ty: 0, rot: 0, sx: 1, sy: 1 };
+}
+
+function numeric(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeTransform(tf = {}) {
+  return {
+    tx: numeric(tf.tx, 0),
+    ty: numeric(tf.ty, 0),
+    rot: numeric(tf.rot, 0),
+    sx: numeric(tf.sx, 1),
+    sy: numeric(tf.sy, 1),
+  };
+}
+
+function withPausedSceneSync(fn) {
+  pauseSceneSync();
+  try {
+    return fn();
+  } finally {
+    resumeSceneSync();
+  }
 }
 
 /** Parse decomposed transform from an SVG transform attribute */
@@ -31,11 +56,13 @@ export function parseLeadingTranslate(transformStr) {
 export function ensureObjTransform(o) {
   if (!o.data) o.data = {};
   if (!o.data.transform) o.data.transform = readTransformFromEl(o.el);
+  o.data.transform = normalizeTransform(o.data.transform);
   return o.data.transform;
 }
 
 /** Write decomposed transform → SVG attribute (rotate/scale around local bbox center) */
 export function writeTransformToEl(el, tf) {
+  tf = normalizeTransform(tf);
   const bb = el.getBBox();
   const cx = bb.x + bb.width / 2;
   const cy = bb.y + bb.height / 2;
@@ -49,7 +76,7 @@ export function writeTransformToEl(el, tf) {
 }
 
 export function commitTransform(o, tf) {
-  writeTransformToEl(o.el, tf);
+  withPausedSceneSync(() => writeTransformToEl(o.el, tf));
   Object.assign(ensureObjTransform(o), tf);
   ctx.scene?.notifyTransform([o.id]);
 }
@@ -78,27 +105,33 @@ export function createTransformSnapshot(o) {
 
 export function moveObjects(ids, dx, dy) {
   if (!dx && !dy) return;
-  ids.forEach((id) => {
-    const o = getObj(id);
-    if (!o?.el || o.locked || o.visible === false) return;
-    const tf = ensureObjTransform(o);
-    tf.tx += dx;
-    tf.ty += dy;
-    writeTransformToEl(o.el, tf);
+  const changed = [];
+  withPausedSceneSync(() => {
+    ids.forEach((id) => {
+      const o = getObj(id);
+      if (!o?.el || o.locked || o.visible === false) return;
+      const tf = ensureObjTransform(o);
+      tf.tx += dx;
+      tf.ty += dy;
+      writeTransformToEl(o.el, tf);
+      changed.push(id);
+    });
   });
-  ctx.scene?.notifyTransform(ids);
+  if (changed.length) ctx.scene?.notifyTransform(changed);
 }
 
 export function flipObjects(ids, axis) {
   const changed = [];
-  ids.forEach((id) => {
-    const o = getObj(id);
-    if (!o?.el || o.locked || o.visible === false) return;
-    const tf = ensureObjTransform(o);
-    if (axis === 'x') tf.sx *= -1;
-    if (axis === 'y') tf.sy *= -1;
-    writeTransformToEl(o.el, tf);
-    changed.push(id);
+  withPausedSceneSync(() => {
+    ids.forEach((id) => {
+      const o = getObj(id);
+      if (!o?.el || o.locked || o.visible === false) return;
+      const tf = ensureObjTransform(o);
+      if (axis === 'x') tf.sx *= -1;
+      if (axis === 'y') tf.sy *= -1;
+      writeTransformToEl(o.el, tf);
+      changed.push(id);
+    });
   });
   if (changed.length) ctx.scene?.notifyTransform(changed);
   return changed.length;

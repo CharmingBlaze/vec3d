@@ -3,13 +3,13 @@ import { ctx, getObj } from './context.js';
 /** @typedef {{ depth: number, bevel: number, round: number, bseg: number, cseg: number, profile: string, mat: string, shine: number, strokeMode: string, topoPreset?: string, inflation?: number }} D3Settings */
 
 export const D3_DEFAULTS = {
-  depth: 58,
+  depth: 80,
   bevel: 16,
   round: 14,
   bseg: 3,
   cseg: 24,
   inflation: 85,
-  profile: 'game',
+  profile: 'slab',
   mat: 'flat',
   shine: 100,
   strokeMode: 'flat',

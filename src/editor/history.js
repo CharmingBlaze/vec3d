@@ -4,6 +4,10 @@ import { updateStatus } from '../ui/layers.js';
 import { onObjMouseDown } from '../canvas/handlers.js';
 import { updateProps, highlightSelectedFromScene } from './selection.js';
 
+function notifyHistoryChanged() {
+  document.dispatchEvent(new CustomEvent('vec3d:history-changed'));
+}
+
 export function saveHistory() {
   const { state, dom } = ctx;
   const scene = getScene();
@@ -20,6 +24,7 @@ export function saveHistory() {
   state.histIdx = state.history.length - 1;
   scene.markSaveClean();
   updateStatus();
+  notifyHistoryChanged();
 }
 
 export function restoreHistory(idx) {
@@ -34,6 +39,7 @@ export function restoreHistory(idx) {
   if (ctx.state.selected.length) showHandles();
   updateProps();
   updateStatus();
+  notifyHistoryChanged();
 }
 
 export function canUndo() {

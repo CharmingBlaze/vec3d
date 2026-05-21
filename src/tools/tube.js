@@ -4,7 +4,7 @@ import { buildPath, flattenPathPoints, isClosedLoop } from '../svg/path.js';
 import { addObject } from '../editor/objects.js';
 import { selectObj } from '../editor/selection.js';
 import { smoothPencilPts } from './pencil.js';
-import { tubeRadiusFromDepth } from '../core/tube-mode.js';
+import { tubeRadiusFromDepth, isMidPolyTubeTool } from '../core/tube-mode.js';
 import { flushRealtime3D } from '../three/realtime.js';
 
 /** Finish a rounded-tube stroke. Closed loops rebuild as filled topology cages. */
@@ -38,6 +38,13 @@ export function finishTubeStroke(rawPts) {
   const profile = dom.d3Profile?.value || 'rounded';
   const radius = tubeRadiusFromDepth(state.strokeW, depth, profile);
 
+  const midPoly = isMidPolyTubeTool();
+  const pathLen = centerline.length;
+  const tubularSegments = midPoly
+    ? Math.max(8, Math.ceil(pathLen * 0.75))
+    : Math.max(48, Math.ceil(pathLen * 2));
+  const radialSegments = midPoly ? 8 : Math.max(16, +(dom.d3Cseg?.value || 12));
+
   const el = svgEl('path', {
     d,
     fill: 'none',
@@ -49,13 +56,14 @@ export function finishTubeStroke(rawPts) {
     class: 'tube-stroke',
   });
 
-  const o = addObject(el, 'tube', {
+  const o = addObject(el, midPoly ? 'midtube' : 'tube', {
     centerline,
     closed,
     tubeSilhouette: closed,
     radius,
-    tubularSegments: Math.max(48, Math.ceil(centerline.length * 2)),
-    radialSegments: Math.max(16, +(dom.d3Cseg?.value || 12)),
+    tubularSegments,
+    radialSegments,
+    tubeQuality: midPoly ? 'mid' : 'smooth',
   });
 
   if (closed) {

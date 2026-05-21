@@ -1,5 +1,5 @@
 import { ctx } from '../core/context.js';
-import { PALETTE } from '../core/constants.js';
+import { DRAW_TOOLS, PALETTE } from '../core/constants.js';
 import { refreshLayers } from './layers.js';
 import { setZoom, fit2DView } from '../svg/coordinates.js';
 import { showHandles, showNodeHandles } from '../editor/handles.js';
@@ -421,6 +421,12 @@ function bindSlider(sliderKey, valueKey, stateKey, onChange) {
 export function initToolbar() {
   const { state, dom } = ctx;
 
+  const syncCanvasCursor = () => {
+    const drawing = DRAW_TOOLS.includes(state.tool)
+      || ['pen', 'poly', 'pencil', 'tube', 'midtube'].includes(state.tool);
+    dom.mainSvg?.classList.toggle('drawing-cursor', drawing);
+  };
+
   document.querySelectorAll('[data-tool]').forEach((b) => {
     b.onclick = () => {
       if (b.dataset.tool === 'zoom-in') {
@@ -439,6 +445,7 @@ export function initToolbar() {
       dom.shapePopupBtn?.classList.remove('on');
       b.classList.add('on');
       dom.sbTool.textContent = `Tool: ${state.tool}`;
+      syncCanvasCursor();
       if (state.tool === 'node' && state.selected.length) showNodeHandles();
       else if (state.tool !== 'node') showHandles();
     };
@@ -454,6 +461,7 @@ export function initToolbar() {
       document.querySelectorAll('[data-sh]').forEach((x) => x.classList.remove('on'));
       b.classList.add('on');
       dom.sbTool.textContent = `Tool: shape (${state.shape})`;
+      syncCanvasCursor();
     };
   });
 

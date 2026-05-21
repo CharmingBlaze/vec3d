@@ -6,7 +6,6 @@ import { svgPoint, setZoom, applyTransform } from '../svg/coordinates.js';
 import { getEditorBBox } from '../svg/geometry.js';
 import { addObject } from '../editor/objects.js';
 import { syncSelectTool3D, finishSelectTool3D } from '../three/transform-sync.js';
-import { scheduleRealtime3D } from '../three/realtime.js';
 import { saveHistory } from '../editor/history.js';
 import { moveObjects, startMoveDrag, applyRotateDrag, applyScaleDrag } from '../svg/transform.js';
 import { deselectAll, selectObj, updateProps } from '../editor/selection.js';
@@ -66,21 +65,22 @@ function onCanvasDown(e) {
     polyClick(e);
     return;
   }
-  if (state.tool === 'pencil' || state.tool === 'tube') {
+  if (state.tool === 'pencil' || state.tool === 'tube' || state.tool === 'midtube') {
     const isTube = shouldDrawAsTube();
+    const isMid = state.tool === 'midtube';
     state.pencilPts = [p];
     state.pencilEl = svgEl('path', {
       d: `M ${p.x} ${p.y}`,
       fill: 'none',
-      stroke: isTube ? '#a855f7' : '#818cf8',
+      stroke: isMid ? '#06d6a0' : isTube ? '#a855f7' : '#818cf8',
       'stroke-width': Math.max(2, state.strokeW),
       'stroke-linecap': 'round',
       'stroke-linejoin': 'round',
-      class: isTube ? 'tube-preview guide-path' : 'pencil-preview guide-path',
+      class: isMid ? 'midtube-preview guide-path' : isTube ? 'tube-preview guide-path' : 'pencil-preview guide-path',
     });
     ctx.dom.previewLayer.appendChild(state.pencilEl);
     interaction.isDragging = true;
-    interaction.dragType = isTube ? 'tube' : 'pencil';
+    interaction.dragType = isMid ? 'midtube' : isTube ? 'tube' : 'pencil';
     return;
   }
   if (DRAW_TOOLS.includes(state.tool)) {
@@ -128,6 +128,10 @@ function onCanvasDown(e) {
   }
 }
 
+function isDrawingTool(tool) {
+  return DRAW_TOOLS.includes(tool) || ['pen', 'poly', 'pencil', 'tube', 'midtube'].includes(tool);
+}
+
 function pointInSelection(p) {
   return ctx.state.selected.some((id) => {
     const o = getObj(id);
@@ -160,6 +164,7 @@ function onMouseMove(e) {
   const { state, dom, interaction } = ctx;
   const p = svgPoint(e);
   dom.sbXy.textContent = `X: ${Math.round(p.x)}  Y: ${Math.round(p.y)}`;
+  dom.mainSvg.classList.toggle('drawing-cursor', isDrawingTool(state.tool));
 
   if (interaction.panStart) {
     state.panX = e.clientX - interaction.panStart.x;
@@ -174,7 +179,7 @@ function onMouseMove(e) {
 
   if (!interaction.isDragging) return;
 
-  if (interaction.dragType === 'pencil' || interaction.dragType === 'tube') {
+  if (interaction.dragType === 'pencil' || interaction.dragType === 'tube' || interaction.dragType === 'midtube') {
     const last = state.pencilPts[state.pencilPts.length - 1];
     if (last && Math.hypot(p.x - last.x, p.y - last.y) < FREEHAND_MIN_POINT_SPACING) return;
     state.pencilPts.push(p);
@@ -251,7 +256,6 @@ function onMouseMove(e) {
     updatePath(oid, nodeKind);
     showNodeHandles();
     ctx.scene?.notifyGeometry([oid]);
-    scheduleRealtime3D();
   }
 }
 
@@ -260,7 +264,7 @@ function onMouseUp(e) {
   interaction.panStart = null;
 
   if (interaction.dragType === 'pencil') finishPencilStroke();
-  else if (interaction.dragType === 'tube') finishTubeStroke(state.pencilPts);
+  else if (interaction.dragType === 'tube' || interaction.dragType === 'midtube') finishTubeStroke(state.pencilPts);
   else if (interaction.dragType === 'shape') finishShapePreview(e);
   else if (interaction.dragType === 'selbox') {
     ctx.dom.previewLayer.innerHTML = '';

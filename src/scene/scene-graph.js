@@ -94,14 +94,14 @@ export class SceneGraph {
   setSelection(ids, mode = 'replace') {
     if (mode === 'replace') {
       this.selected.length = 0;
-      this.state.selected.length = 0;
+      if (this.state.selected !== this.selected) this.state.selected.length = 0;
     }
     ids.forEach((id) => {
       const node = this.get(id);
       if (!node || node.locked || node.visible === false) return;
       if (!this.selected.includes(id)) {
         this.selected.push(id);
-        this.state.selected.push(id);
+        if (this.state.selected !== this.selected) this.state.selected.push(id);
       }
     });
     this.bus.emit(SceneEvents.SELECTION, { ids: this.getSelection() });
@@ -109,7 +109,7 @@ export class SceneGraph {
 
   clearSelection() {
     this.selected.length = 0;
-    this.state.selected.length = 0;
+    if (this.state.selected !== this.selected) this.state.selected.length = 0;
     this.bus.emit(SceneEvents.SELECTION, { ids: [] });
   }
 

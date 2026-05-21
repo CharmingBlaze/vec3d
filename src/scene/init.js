@@ -24,6 +24,7 @@ export function initSceneGraph() {
     updateStatus();
     update3DGizmoAttachment();
   });
+  scene.on(SceneEvents.TRANSFORM, live3D);
   scene.on(SceneEvents.STYLE, live3D);
   scene.on(SceneEvents.HISTORY, () => {
     refreshLayers();

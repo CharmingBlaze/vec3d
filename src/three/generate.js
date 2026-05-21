@@ -18,7 +18,9 @@ import { createGameInflatedMesh } from '../topology/createGameInflatedMesh.js';
 import { createSlabExtrudeMesh } from '../topology/createSlabExtrudeMesh.js';
 import { parsePath, flattenPathPoints, sampleSvgPath, isClosedLoop } from '../svg/path.js';
 import { shouldUseTubeMesh, tubeRadiusFromDepth } from '../core/tube-mode.js';
+import { resolveExtrudeDepth, extrudeMeshOffsetZ } from '../core/depth.js';
 import { getObjectD3 } from '../core/d3-settings.js';
+import { buildPrimitiveMesh, isPrimitiveObject } from './primitive-mesh.js';
 import { detach3DGizmo, ensureObjectGroup, update3DGizmoAttachment } from './gizmos.js';
 function disposeMesh(mesh) {
   if (!mesh) return;
@@ -133,6 +135,24 @@ export function rebuild3D(opts = {}) {
     const fillCol = style.fill === 'none' ? style.stroke || '#888888' : style.fill;
     const objectGroup = ensureObjectGroup(o.id);
 
+    if (isPrimitiveObject(o)) {
+      const built = buildPrimitiveMesh(o, cx, cy, d3);
+      if (built?.geometry) {
+        const mesh = new THREE.Mesh(built.geometry, getThreeMat(fillCol, d3.mat, d3.shine));
+        mesh.name = `${o.data.primitive3d}_${o.id || meshes3d.length + 1}`;
+        mesh.userData.sourceObjectId = o.id;
+        mesh.userData.sourceName = mesh.name;
+        mesh.userData.fillColor = fillCol;
+        mesh.userData.primitive3d = o.data.primitive3d;
+        mesh.position.set(0, 0, built.offsetZ);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        objectGroup.add(mesh);
+        meshes3d.push(mesh);
+        return;
+      }
+    }
+
     const tubeGeometry = buildTubeGeometryForObject(o, style, cx, cy, d3.profile, settings, cseg, d3.depth, d3);
     if (tubeGeometry) {
       const mesh = new THREE.Mesh(tubeGeometry, getThreeMat(fillCol, d3.mat, d3.shine));
@@ -233,7 +253,7 @@ export function rebuild3D(opts = {}) {
       mesh.userData.sourceObjectId = o.id;
       mesh.userData.sourceName = mesh.name;
       mesh.userData.fillColor = fillCol;
-      mesh.position.set(0, 0, centered ? 0 : -d3.depth / 2);
+      mesh.position.set(0, 0, centered ? 0 : extrudeMeshOffsetZ(d3.depth));
       mesh.rotation.set(0, 0, 0);
       mesh.scale.set(1, 1, 1);
       mesh.castShadow = true;

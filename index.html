@@ -14,6 +14,10 @@
       <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 17l1 3 3-1 11-11-4-4L4 15v2z"/><path d="M13.5 5.5l4 4"/></symbol>
       <symbol id="i-tube" viewBox="0 0 24 24"><path d="M12 3.5c3.8 0 6.5 3.1 6.5 8.5s-2.7 8.5-6.5 8.5S5.5 17.4 5.5 12 8.2 3.5 12 3.5z"/><path d="M12 3.5v17M7 8.2h10M6 12h12M7 15.8h10"/><path d="M8.2 5.8c2.3 1.2 5.3 1.2 7.6 0M8.2 18.2c2.3-1.2 5.3-1.2 7.6 0"/></symbol>
       <symbol id="i-rect" viewBox="0 0 24 24"><rect x="5" y="6" width="14" height="12" rx="2"/></symbol>
+      <symbol id="i-box3d" viewBox="0 0 24 24"><path d="M5 9l7-4 7 4v8l-7 4-7-4V9z"/><path d="M5 9l7 4 7-4M12 13v8"/></symbol>
+      <symbol id="i-sphere3d" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><ellipse cx="12" cy="12" rx="7.5" ry="3.2"/><path d="M4.5 12h15"/></symbol>
+      <symbol id="i-cylinder3d" viewBox="0 0 24 24"><ellipse cx="12" cy="7" rx="6.5" ry="2.5"/><path d="M5.5 7v10c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5V7"/><ellipse cx="12" cy="17" rx="6.5" ry="2.5"/></symbol>
+      <symbol id="i-midtube" viewBox="0 0 24 24"><path d="M6 8c2.5-2 5.5-2 8 0s5.5 2 8 0"/><path d="M6 12c2.5-2 5.5-2 8 0s5.5 2 8 0"/><path d="M6 16c2.5-2 5.5-2 8 0s5.5 2 8 0"/><path d="M4 8v8M20 8v8"/></symbol>
       <symbol id="i-ellipse" viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="5.5"/></symbol>
       <symbol id="i-polygon" viewBox="0 0 24 24"><path d="M12 4l8 5v6l-8 5-8-5V9l8-5z"/></symbol>
       <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.1 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.1 6.1-.7L12 3z"/></symbol>
@@ -107,6 +111,13 @@
           <button class="it" data-tool="poly" title="Poly Pen (O)" aria-label="Poly pen"><svg><use href="#i-poly"></use></svg></button>
           <button class="it" data-tool="pencil" title="Freehand (F)" aria-label="Freehand"><svg><use href="#i-pencil"></use></svg></button>
           <button class="it" data-tool="tube" title="Rounded Tube (B)" aria-label="Rounded tube stroke"><svg><use href="#i-tube"></use></svg></button>
+          <button class="it" data-tool="midtube" title="Mid-Poly Tube (M)" aria-label="Mid-poly tube stroke"><svg><use href="#i-midtube"></use></svg></button>
+          <div class="it-sep"></div>
+          <button class="it" data-tool="rect" title="Rectangle (U)" aria-label="2D rectangle"><svg><use href="#i-rect"></use></svg></button>
+          <button class="it" data-tool="ellipse" title="Ellipse (E)" aria-label="2D ellipse"><svg><use href="#i-ellipse"></use></svg></button>
+          <button class="it" data-tool="box3d" title="3D Box (X)" aria-label="3D box"><svg><use href="#i-box3d"></use></svg></button>
+          <button class="it" data-tool="sphere3d" title="3D Sphere (S)" aria-label="3D sphere"><svg><use href="#i-sphere3d"></use></svg></button>
+          <button class="it" data-tool="cylinder3d" title="3D Cylinder (H)" aria-label="3D cylinder"><svg><use href="#i-cylinder3d"></use></svg></button>
           <div class="it-sep"></div>
           <button class="it" id="shape-popup-btn" type="button" title="Shapes (R)" aria-label="Shape presets"><svg><use href="#i-shapes"></use></svg></button>
           <div class="shape-popover" id="shape-popover" hidden>
@@ -184,8 +195,8 @@
               </div>
               <div class="row"><span class="rl">3D Shape</span>
                 <select id="d3-profile">
-                  <option value="game" selected>Game Blob</option>
-                  <option value="slab">Flat Extrude</option>
+                  <option value="game">Game Blob</option>
+                  <option value="slab" selected>Flat Extrude</option>
                   <option value="inflated">Inflated Blob</option>
                   <option value="rounded">Solid Blob</option>
                   <option value="capsule">Capsule / Pill</option>
@@ -201,7 +212,7 @@
                   <option value="smooth">Smooth Preview</option>
                 </select>
               </div>
-              <div class="row"><span class="rl">Depth</span><input type="range" id="d3-depth" min="1" max="100" value="58" title="Extrusion depth" /><span class="rv" id="vv-depth">58</span></div>
+              <div class="row"><span class="rl">Depth</span><input type="range" id="d3-depth" min="1" max="300" value="80" step="1" title="Extrusion depth (px)" /><span class="rv" id="vv-depth">80</span></div>
               <div class="row"><span class="rl">Inflation</span><input type="range" id="d3-inflation" min="0" max="150" value="85" title="Surface puffiness — lower = flatter" /><span class="rv" id="vv-inflation">85</span></div>
               <div class="row"><span class="rl">Bevel</span><input type="range" id="d3-bevel" min="0" max="40" value="16" title="Edge bevel on blob surfaces" /><span class="rv" id="vv-bevel">16</span></div>
               <div class="row"><span class="rl">End Round</span><input type="range" id="d3-round" min="0" max="100" value="14" title="Cap flatness — lower = less pillow puff" /><span class="rv" id="vv-round">14</span></div>

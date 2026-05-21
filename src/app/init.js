@@ -8,6 +8,7 @@ import { initDocumentD3FromDom } from '../core/d3-settings.js';
 import { initDocumentStyleFromState, syncPanelFromContext } from '../core/object-settings.js';
 import { initPathOps, importSVG, exportSVG } from '../io/svg-io.js';
 import { initSceneGraph } from '../scene/init.js';
+import { SceneEvents } from '../scene/scene-bus.js';
 import { saveHistory } from '../editor/history.js';
 import { initSceneSyncObserver } from '../editor/scene-sync.js';
 import { refreshLayers, updateStatus } from '../ui/layers.js';
@@ -34,6 +35,7 @@ export function initApp() {
   initMenuDropdowns();
   initSceneSyncObserver();
   wireTopbar();
+  wireActionState();
   initSplitView();
   initCanvasGrid();
   fit2DView();
@@ -49,6 +51,7 @@ export function initApp() {
 
 function wireTopbar() {
   const { dom, state, three } = ctx;
+  ensureEditMenuActions(dom);
 
   dom.tbNew.onclick = () => {
     if (!confirm('Clear all and start new?')) return;
@@ -68,13 +71,17 @@ function wireTopbar() {
   dom.tbOpen.onclick = importSVG;
   dom.tbSaveSvg.onclick = exportSVG;
   dom.btnExportSvg.onclick = exportSVG;
-  dom.tbUndo.onclick = undo;
-  dom.tbRedo.onclick = redo;
-  dom.tbDel.onclick = deleteSelected;
-  dom.tbCopy.onclick = copySelection;
-  dom.tbPaste.onclick = pasteClipboard;
-  dom.tbFlipH.onclick = () => flipSelected('x');
-  dom.tbFlipV.onclick = () => flipSelected('y');
+  dom.tbUndo.onclick = runTopbarAction(undo);
+  dom.tbRedo.onclick = runTopbarAction(redo);
+  dom.tbDel.onclick = runTopbarAction(deleteSelected);
+  dom.tbCopy.onclick = runTopbarAction(copySelection);
+  dom.tbPaste.onclick = runTopbarAction(pasteClipboard);
+  dom.tbFlipH.onclick = runTopbarAction(() => flipSelected('x'));
+  dom.tbFlipV.onclick = runTopbarAction(() => flipSelected('y'));
+  dom.menuCopy.onclick = runMenuAction(copySelection);
+  dom.menuPaste.onclick = runMenuAction(pasteClipboard);
+  dom.menuFlipH.onclick = runMenuAction(() => flipSelected('x'));
+  dom.menuFlipV.onclick = runMenuAction(() => flipSelected('y'));
 
   dom.vtab2d.onclick = () => import('../three/view.js').then(({ show2DView }) => show2DView());
   dom.vtab3d.onclick = () => import('../three/view.js').then(({ show3DView }) => show3DView());
@@ -82,4 +89,85 @@ function wireTopbar() {
   if (dom.btnExportGltf) {
     dom.btnExportGltf.onclick = () => import('../three/export.js').then(({ exportGLTF }) => exportGLTF());
   }
+}
+
+function ensureEditMenuActions(dom) {
+  const menu = dom.tbUndo?.closest('.menu-pop');
+  if (!menu || dom.menuCopy) return;
+
+  const makeButton = (label, title) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.title = title;
+    return button;
+  };
+
+  dom.menuCopy = makeButton('Copy', 'Copy selection (Ctrl+C)');
+  dom.menuPaste = makeButton('Paste', 'Paste selection (Ctrl+V)');
+  dom.menuFlipH = makeButton('Flip Horizontal', 'Flip selected objects horizontally');
+  dom.menuFlipV = makeButton('Flip Vertical', 'Flip selected objects vertically');
+
+  const anchor = dom.tbDel ?? null;
+  [dom.menuCopy, dom.menuPaste, dom.menuFlipH, dom.menuFlipV].forEach((button) => {
+    menu.insertBefore(button, anchor);
+  });
+}
+
+function runTopbarAction(action) {
+  return () => {
+    const result = action();
+    syncTopbarActionState();
+    return result;
+  };
+}
+
+function runMenuAction(action) {
+  return (event) => {
+    const result = runTopbarAction(action)();
+    event.currentTarget.closest('details')?.removeAttribute('open');
+    return result;
+  };
+}
+
+function wireActionState() {
+  const scene = ctx.scene;
+  if (!scene) return;
+  const sync = () => syncTopbarActionState();
+
+  scene.on(SceneEvents.SELECTION, sync);
+  scene.on(SceneEvents.STRUCTURE, sync);
+  scene.on(SceneEvents.HISTORY, sync);
+  document.addEventListener('vec3d:clipboard-changed', sync);
+  document.addEventListener('vec3d:history-changed', sync);
+  sync();
+}
+
+function syncTopbarActionState() {
+  const { dom, state } = ctx;
+  const hasEditableSelection = state.selected.some((id) => {
+    const node = ctx.scene?.get(id);
+    return node && !node.locked && node.visible !== false;
+  });
+  const canPaste = Array.isArray(state.clipboard) && state.clipboard.length > 0;
+  const canUndo = state.histIdx > 0;
+  const canRedo = state.histIdx >= 0 && state.histIdx < state.history.length - 1;
+
+  setButtonEnabled(dom.tbUndo, canUndo);
+  setButtonEnabled(dom.tbRedo, canRedo);
+  setButtonEnabled(dom.tbDel, hasEditableSelection);
+  setButtonEnabled(dom.tbCopy, hasEditableSelection);
+  setButtonEnabled(dom.tbPaste, canPaste);
+  setButtonEnabled(dom.tbFlipH, hasEditableSelection);
+  setButtonEnabled(dom.tbFlipV, hasEditableSelection);
+  setButtonEnabled(dom.menuCopy, hasEditableSelection);
+  setButtonEnabled(dom.menuPaste, canPaste);
+  setButtonEnabled(dom.menuFlipH, hasEditableSelection);
+  setButtonEnabled(dom.menuFlipV, hasEditableSelection);
+}
+
+function setButtonEnabled(button, enabled) {
+  if (!button) return;
+  button.disabled = !enabled;
+  button.setAttribute('aria-disabled', String(!enabled));
 }

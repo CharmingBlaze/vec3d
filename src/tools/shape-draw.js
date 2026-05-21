@@ -4,6 +4,9 @@ import { svgPoint } from '../svg/coordinates.js';
 import { makePolygon, makeStar, makeShapePreset } from '../svg/shapes.js';
 import { addObject } from '../editor/objects.js';
 import { selectObj } from '../editor/selection.js';
+import { primitiveDataForTool, isPrimitiveDrawTool } from '../core/primitive-tools.js';
+import { depthForPrimitiveDraw } from '../core/depth.js';
+import { getDocumentD3 } from '../core/d3-settings.js';
 
 const PREVIEW_STYLE = {
   fill: 'rgba(129, 140, 248, 0.12)',
@@ -61,8 +64,10 @@ export function startShapePreview(e) {
     class: 'shape-preview guide-shape',
   };
   let el;
-  if (state.tool === 'rect') el = svgEl('rect', { x: p.x, y: p.y, width: 0, height: 0, ...attrs });
-  else if (state.tool === 'ellipse') el = svgEl('ellipse', { cx: p.x, cy: p.y, rx: 0, ry: 0, ...attrs });
+  if (state.tool === 'rect' || state.tool === 'box3d') el = svgEl('rect', { x: p.x, y: p.y, width: 0, height: 0, ...attrs });
+  else if (state.tool === 'ellipse' || state.tool === 'sphere3d' || state.tool === 'cylinder3d') {
+    el = svgEl('ellipse', { cx: p.x, cy: p.y, rx: 0, ry: 0, ...attrs });
+  }
   else if (state.tool === 'line') el = svgEl('line', { x1: p.x, y1: p.y, x2: p.x, y2: p.y, ...attrs, fill: 'none' });
   else if (state.tool === 'polygon' || state.tool === 'star') el = svgEl('polygon', { points: '0,0', ...attrs });
   else if (state.tool === 'shape') el = svgEl('path', { d: 'M 0 0', ...attrs });
@@ -81,18 +86,25 @@ export function updateShapePreview(e) {
   const cy = (y1 + y2) / 2;
   const w = Math.abs(x2 - x1);
   const h = Math.abs(y2 - y1);
-  const r = Math.min(w, h) / 2;
+  const square = state.tool === 'sphere3d' ? Math.max(w, h) : w;
+  const squareH = state.tool === 'sphere3d' ? Math.max(w, h) : h;
+  const r = Math.min(square, squareH) / 2;
   const el = state.shapePreview;
-  if (state.tool === 'rect') {
+  if (state.tool === 'rect' || state.tool === 'box3d') {
     el.setAttribute('x', Math.min(x1, x2));
     el.setAttribute('y', Math.min(y1, y2));
     el.setAttribute('width', w);
     el.setAttribute('height', h);
-  } else if (state.tool === 'ellipse') {
+  } else if (state.tool === 'ellipse' || state.tool === 'cylinder3d') {
     el.setAttribute('cx', cx);
     el.setAttribute('cy', cy);
     el.setAttribute('rx', w / 2);
     el.setAttribute('ry', h / 2);
+  } else if (state.tool === 'sphere3d') {
+    el.setAttribute('cx', cx);
+    el.setAttribute('cy', cy);
+    el.setAttribute('rx', r);
+    el.setAttribute('ry', r);
   } else if (state.tool === 'line') {
     el.setAttribute('x2', x2);
     el.setAttribute('y2', y2);
@@ -133,7 +145,8 @@ export function finishShapePreview(e) {
   const cy = (y1 + y2) / 2;
   const w = Math.abs(x2 - x1);
   const h = Math.abs(y2 - y1);
-  const r = Math.min(w, h) / 2;
+  const sphereSize = Math.max(w, h);
+  const r = sphereSize / 2;
   dom.previewLayer.innerHTML = '';
   state.shapePreview = null;
 
@@ -150,11 +163,23 @@ export function finishShapePreview(e) {
   };
   let el;
   let type = 'shape';
-  if (state.tool === 'rect') {
+  const primitiveKind = primitiveDataForTool(state.tool);
+  const extraData = primitiveKind ? { ...primitiveKind } : {};
+  if (isPrimitiveDrawTool(state.tool)) {
+    extraData.d3 = {
+      ...getDocumentD3(),
+      profile: 'slab',
+      depth: depthForPrimitiveDraw(w, h, state.tool, getDocumentD3()),
+    };
+  }
+  if (state.tool === 'rect' || state.tool === 'box3d') {
     el = svgEl('rect', { x: Math.min(x1, x2), y: Math.min(y1, y2), width: w, height: h, ...attrs });
     type = 'rect';
-  } else if (state.tool === 'ellipse') {
+  } else if (state.tool === 'ellipse' || state.tool === 'cylinder3d') {
     el = svgEl('ellipse', { cx, cy, rx: w / 2, ry: h / 2, ...attrs });
+    type = 'ellipse';
+  } else if (state.tool === 'sphere3d') {
+    el = svgEl('ellipse', { cx, cy, rx: r, ry: r, ...attrs });
     type = 'ellipse';
   } else if (state.tool === 'line') {
     el = svgEl('line', {
@@ -182,7 +207,7 @@ export function finishShapePreview(e) {
     state.shapeStart = null;
     return;
   }
-  const o = addObject(el, type);
+  const o = addObject(el, type, extraData);
   selectObj(o.id);
   state.shapeStart = null;
 }

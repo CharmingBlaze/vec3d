@@ -11,7 +11,7 @@ export function createGameInflatedMesh(outline, options) {
   if (samples < 3) return null;
 
   const rings = Math.max(2, Math.min(6, options.rings ?? 3));
-  const halfDepth = options.depth * 0.52;
+  const halfDepth = options.depth * 0.58;
   const inflation = options.inflation ?? 0.72;
   const bevel = options.bevel ?? 0.12;
   const endRound = options.endRound ?? 0;

@@ -21,7 +21,9 @@ export function pauseSceneSync() {
 }
 
 export function resumeSceneSync() {
-  observerPaused = Math.max(0, observerPaused - 1);
+  setTimeout(() => {
+    observerPaused = Math.max(0, observerPaused - 1);
+  }, 0);
 }
 
 const SYNC_ATTRS = new Set([

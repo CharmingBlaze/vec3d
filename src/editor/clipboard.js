@@ -9,6 +9,10 @@ import { flushRealtime3D } from '../three/realtime.js';
 
 const PASTE_OFFSET = 24;
 
+function notifyClipboardChanged() {
+  document.dispatchEvent(new CustomEvent('vec3d:clipboard-changed'));
+}
+
 function cloneData(data) {
   return data ? JSON.parse(JSON.stringify(data)) : {};
 }
@@ -34,6 +38,7 @@ export function copySelection() {
     svg: node.el.cloneNode(true),
   }));
   ctx.state.clipboardPasteCount = 0;
+  notifyClipboardChanged();
   return true;
 }
 
@@ -85,6 +90,7 @@ export function pasteClipboard() {
   saveHistory();
   refreshLayers();
   flushRealtime3D();
+  notifyClipboardChanged();
   return true;
 }
 
@@ -95,6 +101,7 @@ export function flipSelected(axis) {
   });
   if (!ids.length || !flipObjects(ids, axis)) return false;
   showHandles();
+  updateProps();
   saveHistory();
   refreshLayers();
   flushRealtime3D();

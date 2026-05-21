@@ -14,12 +14,18 @@ export const TOOL_SHORTCUTS = {
   o: 'poly',
   f: 'pencil',
   b: 'tube',
+  m: 'midtube',
   r: 'shape',
   l: 'line',
   t: 'text',
+  u: 'rect',
+  e: 'ellipse',
+  x: 'box3d',
+  s: 'sphere3d',
+  h: 'cylinder3d',
 };
 
-export const DRAW_TOOLS = ['line', 'shape'];
+export const DRAW_TOOLS = ['line', 'shape', 'rect', 'ellipse', 'box3d', 'sphere3d', 'cylinder3d'];
 
 /** Minimum px between freehand capture points */
 export const FREEHAND_MIN_POINT_SPACING = 4;

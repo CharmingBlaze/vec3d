@@ -3,7 +3,6 @@ import { svgEl } from '../svg/elements.js';
 import { parsePath, buildPath } from '../svg/path.js';
 import { getEditorBBox, mapToEditor, mapFromEditor } from '../svg/geometry.js';
 import { onHandleDown, onNodeHandleDown, onMoveSurfaceDown } from '../canvas/handlers.js';
-import { scheduleRealtime3D } from '../three/realtime.js';
 
 function appendMoveSurface(bb) {
   const hit = svgEl('rect', {
@@ -243,7 +242,6 @@ export function updatePath(oid, nodeKind = 'path') {
 
 function notifyRealtimeGeometry(oid) {
   ctx.scene?.notifyGeometry([oid]);
-  scheduleRealtime3D();
 }
 
 function parsePoints(points = '') {

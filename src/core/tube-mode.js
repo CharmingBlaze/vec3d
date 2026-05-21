@@ -13,13 +13,18 @@ export function shouldDrawAsTube() {
   const { state } = ctx;
   return (
     state.tool === 'tube' ||
+    state.tool === 'midtube' ||
     state.strokeMeshMode === 'tube'
   );
 }
 
+export function isMidPolyTubeTool() {
+  return ctx.state.tool === 'midtube';
+}
+
 /** True when this object should rebuild as a swept tube mesh in 3D. */
 export function shouldUseTubeMesh(o, style, profile) {
-  if (o.type === 'tube') return true;
+  if (o.type === 'tube' || o.type === 'midtube') return true;
   const tag = o.el?.tagName?.toLowerCase();
   if (!['path', 'line', 'polyline'].includes(tag)) return false;
 
