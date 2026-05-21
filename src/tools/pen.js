@@ -4,33 +4,67 @@ import { buildPath } from '../svg/path.js';
 import { addObject } from '../editor/objects.js';
 import { selectObj } from '../editor/selection.js';
 import { svgPoint } from '../svg/coordinates.js';
+import { resolveSnapPoint, clearSnapHighlight, snapRadiusPx } from '../editor/node-snap.js';
+import { mergeStrokeIntoPath } from '../editor/path-connect.js';
+import { flushRealtime3D } from '../three/realtime.js';
+
+function snapOptions() {
+  return { penPoints: ctx.state.penPoints };
+}
 
 export function penClick(e) {
   const { state, dom } = ctx;
-  const p = svgPoint(e);
+  const raw = svgPoint(e);
+  const { x, y, snap } = resolveSnapPoint(raw, snapOptions());
+
   if (e.detail === 2) {
     finishPen(true);
     return;
   }
+
   if (state.penPoints.length >= 3) {
     const first = state.penPoints[0];
-    if (Math.hypot(p.x - first.x, p.y - first.y) < 10) {
+    if (Math.hypot(x - first.x, y - first.y) < snapRadiusPx()) {
       finishPen(true);
+      clearSnapHighlight();
       return;
     }
   }
-  const pt = { x: p.x, y: p.y };
-  state.penPoints.push(pt);
+
+  if (
+    snap &&
+    !snap.isOwnStroke &&
+    snap.isEndpoint &&
+    state.penPoints.length >= 1
+  ) {
+    const stroke = [...state.penPoints, { x, y }];
+    if (mergeStrokeIntoPath(snap.oid, snap.index, stroke)) {
+      dom.previewLayer.innerHTML = '';
+      state.penPoints = [];
+      state.penEl = null;
+      clearSnapHighlight();
+      flushRealtime3D();
+      return;
+    }
+  }
+
+  if (snap?.isOwnFirst && state.penPoints.length >= 2) {
+    finishPen(true);
+    clearSnapHighlight();
+    return;
+  }
+
+  state.penPoints.push({ x, y });
   updatePenPreview();
 }
 
 export function dragPenCurve(e) {
   const { state } = ctx;
   if (!state.penPoints.length) return;
-  const p = svgPoint(e);
+  const { x, y } = resolveSnapPoint(svgPoint(e), snapOptions());
   const cur = state.penPoints[state.penPoints.length - 1];
-  const dx = p.x - cur.x;
-  const dy = p.y - cur.y;
+  const dx = x - cur.x;
+  const dy = y - cur.y;
   if (Math.hypot(dx, dy) < 2) return;
   cur.c1x = cur.x - dx;
   cur.c1y = cur.y - dy;
@@ -101,6 +135,7 @@ export function updatePenPreview() {
 
 export function finishPen(closePath = false) {
   const { state, dom } = ctx;
+  clearSnapHighlight();
   if (state.penPoints.length < 2) {
     dom.previewLayer.innerHTML = '';
     state.penPoints = [];

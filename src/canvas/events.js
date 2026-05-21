@@ -15,6 +15,15 @@ import { polyClick, updatePolyPreview, finishPoly } from '../tools/poly.js';
 import { finishPencilStroke } from '../tools/pencil.js';
 import { finishTubeStroke } from '../tools/tube.js';
 import { startShapePreview, updateShapePreview, finishShapePreview } from '../tools/shape-draw.js';
+import {
+  findSnapTarget,
+  updateSnapHighlight,
+  clearSnapHighlight,
+  isDrawingSnapTool,
+  resolveSnapPoint,
+} from '../editor/node-snap.js';
+import { mergeFreehandIntoPath } from '../editor/path-connect.js';
+import { flushRealtime3D } from '../three/realtime.js';
 
 export function initCanvasEvents() {
   const { dom, interaction } = ctx;
@@ -49,9 +58,20 @@ export function initCanvasEvents() {
   );
 }
 
+function snapContext() {
+  const { state } = ctx;
+  return {
+    penPoints: state.penPoints,
+    polyPoints: state.polyPoints,
+    pencilPts: state.pencilPts,
+  };
+}
+
 function onCanvasDown(e) {
   const { state, interaction } = ctx;
-  const p = svgPoint(e);
+  const raw = svgPoint(e);
+  const resolved = resolveSnapPoint(raw, snapContext());
+  const p = { x: resolved.x, y: resolved.y };
 
   if (state.tool === 'pen') {
     penClick(e);
@@ -69,6 +89,7 @@ function onCanvasDown(e) {
     const isTube = shouldDrawAsTube();
     const isMid = state.tool === 'midtube';
     state.pencilPts = [p];
+    state.pencilConnect = resolved.snap?.isEndpoint && !resolved.snap.isOwnStroke ? resolved.snap : null;
     state.pencilEl = svgEl('path', {
       d: `M ${p.x} ${p.y}`,
       fill: 'none',
@@ -162,8 +183,8 @@ function onWindowMouseUp(e) {
 
 function onMouseMove(e) {
   const { state, dom, interaction } = ctx;
-  const p = svgPoint(e);
-  dom.sbXy.textContent = `X: ${Math.round(p.x)}  Y: ${Math.round(p.y)}`;
+  const raw = svgPoint(e);
+  dom.sbXy.textContent = `X: ${Math.round(raw.x)}  Y: ${Math.round(raw.y)}`;
   dom.mainSvg.classList.toggle('drawing-cursor', isDrawingTool(state.tool));
 
   if (interaction.panStart) {
@@ -172,12 +193,51 @@ function onMouseMove(e) {
     applyTransform();
     return;
   }
+
+  if (state.tool === 'pen' && state.penPoints.length) {
+    const snap = findSnapTarget(raw, snapContext());
+    updateSnapHighlight(snap);
+    if (interaction.dragType !== 'pen-curve') return;
+  }
+
   if (state.tool === 'poly' && state.polyPoints.length) {
-    updatePolyPreview(p);
+    const snap = findSnapTarget(raw, snapContext());
+    updateSnapHighlight(snap);
+    const cursor = snap ? { x: snap.x, y: snap.y } : raw;
+    updatePolyPreview(cursor);
     return;
   }
 
+  const isFreehandDrag = ['pencil', 'tube', 'midtube'].includes(interaction.dragType);
+  if (
+    (state.tool === 'pencil' || state.tool === 'tube' || state.tool === 'midtube') &&
+    !interaction.isDragging
+  ) {
+    const snap = findSnapTarget(raw, snapContext());
+    updateSnapHighlight(snap);
+  } else if (isDrawingSnapTool(state.tool) && !interaction.isDragging) {
+    const snap = findSnapTarget(raw, snapContext());
+    updateSnapHighlight(snap);
+  }
+
   if (!interaction.isDragging) return;
+
+  let p = raw;
+  if (isFreehandDrag && state.pencilPts.length) {
+    const snap = findSnapTarget(raw, snapContext());
+    updateSnapHighlight(snap);
+    if (snap?.isEndpoint && !snap.isOwnStroke) {
+      p = { x: snap.x, y: snap.y };
+      state.pencilPts[state.pencilPts.length - 1] = p;
+      state.pencilConnect = snap;
+    }
+  }
+
+  if (interaction.dragType === 'shape') {
+    const snap = findSnapTarget(raw, snapContext());
+    updateSnapHighlight(snap);
+    if (state.tool === 'line' && snap) p = { x: snap.x, y: snap.y };
+  }
 
   if (interaction.dragType === 'pencil' || interaction.dragType === 'tube' || interaction.dragType === 'midtube') {
     const last = state.pencilPts[state.pencilPts.length - 1];
@@ -263,9 +323,11 @@ function onMouseUp(e) {
   const { state, interaction } = ctx;
   interaction.panStart = null;
 
-  if (interaction.dragType === 'pencil') finishPencilStroke();
-  else if (interaction.dragType === 'tube' || interaction.dragType === 'midtube') finishTubeStroke(state.pencilPts);
-  else if (interaction.dragType === 'shape') finishShapePreview(e);
+  if (interaction.dragType === 'pencil') {
+    if (!finishPencilConnect(e)) finishPencilStroke();
+  } else if (interaction.dragType === 'tube' || interaction.dragType === 'midtube') {
+    if (!finishPencilConnect(e)) finishTubeStroke(state.pencilPts);
+  } else if (interaction.dragType === 'shape') finishShapePreview(e);
   else if (interaction.dragType === 'selbox') {
     ctx.dom.previewLayer.innerHTML = '';
     state.shapePreview = null;
@@ -301,4 +363,27 @@ function onMouseUp(e) {
   state.draggingHandle = null;
   interaction.isDragging = false;
   interaction.dragType = null;
+  clearSnapHighlight();
+}
+
+function finishPencilConnect(e) {
+  const { state } = ctx;
+  if (!state.pencilPts?.length) return;
+  const raw = svgPoint(e);
+  const { x, y, snap } = resolveSnapPoint(raw, snapContext());
+  state.pencilPts[state.pencilPts.length - 1] = { x, y };
+
+  const target = snap?.isEndpoint && !snap.isOwnStroke ? snap : state.pencilConnect;
+  if (target?.oid && state.pencilPts.length >= 2) {
+    if (mergeFreehandIntoPath(target.oid, target.index, state.pencilPts)) {
+      ctx.dom.previewLayer.innerHTML = '';
+      state.pencilPts = [];
+      state.pencilEl = null;
+      state.pencilConnect = null;
+      flushRealtime3D();
+      return true;
+    }
+  }
+  state.pencilConnect = null;
+  return false;
 }

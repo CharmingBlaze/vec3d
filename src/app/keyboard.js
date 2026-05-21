@@ -6,6 +6,7 @@ import { deleteSelected } from '../editor/objects.js';
 import { setZoom } from '../svg/coordinates.js';
 import { finishPen } from '../tools/pen.js';
 import { finishPoly, clearPolyPreview } from '../tools/poly.js';
+import { clearSnapHighlight } from '../editor/node-snap.js';
 import { exportSVG } from '../io/svg-io.js';
 import { selectObj, updateProps } from '../editor/selection.js';
 import { nudgeObjects } from '../svg/transform.js';
@@ -85,6 +86,7 @@ export function initKeyboard() {
       deselectAll();
       if (state.penPoints.length) finishPen();
       if (state.polyPoints.length) clearPolyPreview();
+      clearSnapHighlight();
     }
     if (e.key === 'Enter' && state.tool === 'poly' && state.polyPoints.length) {
       e.preventDefault();

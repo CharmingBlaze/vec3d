@@ -3,22 +3,55 @@ import { svgEl } from '../svg/elements.js';
 import { svgPoint } from '../svg/coordinates.js';
 import { addObject } from '../editor/objects.js';
 import { selectObj } from '../editor/selection.js';
+import { resolveSnapPoint, clearSnapHighlight, snapRadiusPx } from '../editor/node-snap.js';
+import { mergeStrokeIntoPath } from '../editor/path-connect.js';
+import { flushRealtime3D } from '../three/realtime.js';
+
+function snapOptions() {
+  return { polyPoints: ctx.state.polyPoints };
+}
 
 export function polyClick(e) {
-  const { state } = ctx;
-  const p = svgPoint(e);
+  const { state, dom } = ctx;
+  const raw = svgPoint(e);
+  const { x, y, snap } = resolveSnapPoint(raw, snapOptions());
+
   if (e.detail === 2) {
     finishPoly(true);
     return;
   }
+
   if (state.polyPoints.length >= 3) {
     const first = state.polyPoints[0];
-    if (Math.hypot(p.x - first.x, p.y - first.y) < 10) {
+    if (Math.hypot(x - first.x, y - first.y) < snapRadiusPx()) {
       finishPoly(true);
+      clearSnapHighlight();
       return;
     }
   }
-  state.polyPoints.push({ x: p.x, y: p.y });
+
+  if (
+    snap &&
+    !snap.isOwnStroke &&
+    snap.isEndpoint &&
+    state.polyPoints.length >= 1
+  ) {
+    const stroke = [...state.polyPoints, { x, y }];
+    if (mergeStrokeIntoPath(snap.oid, snap.index, stroke)) {
+      clearPolyPreview();
+      clearSnapHighlight();
+      flushRealtime3D();
+      return;
+    }
+  }
+
+  if (snap?.isOwnFirst && state.polyPoints.length >= 2) {
+    finishPoly(true);
+    clearSnapHighlight();
+    return;
+  }
+
+  state.polyPoints.push({ x, y });
   updatePolyPreview();
 }
 
@@ -62,6 +95,7 @@ export function updatePolyPreview(cursorPoint) {
 
 export function finishPoly(closeShape = true) {
   const { state, dom } = ctx;
+  clearSnapHighlight();
   if (state.polyPoints.length < 2) {
     clearPolyPreview();
     return;
@@ -88,4 +122,5 @@ export function clearPolyPreview() {
   dom.previewLayer.querySelectorAll('.poly-preview,.poly-anchor').forEach((el) => el.remove());
   state.polyPoints = [];
   state.polyEl = null;
+  clearSnapHighlight();
 }

@@ -7,6 +7,9 @@ import { selectObj } from '../editor/selection.js';
 import { primitiveDataForTool, isPrimitiveDrawTool } from '../core/primitive-tools.js';
 import { depthForPrimitiveDraw } from '../core/depth.js';
 import { getDocumentD3 } from '../core/d3-settings.js';
+import { resolveSnapPoint, findSnapTarget } from '../editor/node-snap.js';
+import { mergeStrokeIntoPath } from '../editor/path-connect.js';
+import { flushRealtime3D } from '../three/realtime.js';
 
 const PREVIEW_STYLE = {
   fill: 'rgba(129, 140, 248, 0.12)',
@@ -54,8 +57,12 @@ function presetObjectType(name) {
 
 export function startShapePreview(e) {
   const { state, dom } = ctx;
-  const p = svgPoint(e);
+  const raw = svgPoint(e);
+  const { x, y, snap } = resolveSnapPoint(raw, {});
+  const p = { x, y };
   state.shapeStart = p;
+  state.shapeStartSnap =
+    state.tool === 'line' && snap?.isEndpoint && !snap.isOwnStroke ? snap : null;
   const attrs = {
     fill: state.fillMode === 'none' ? 'none' : 'rgba(0, 229, 255, 0.12)',
     stroke: '#818cf8',
@@ -106,8 +113,11 @@ export function updateShapePreview(e) {
     el.setAttribute('rx', r);
     el.setAttribute('ry', r);
   } else if (state.tool === 'line') {
-    el.setAttribute('x2', x2);
-    el.setAttribute('y2', y2);
+    const snap = findSnapTarget({ x: x2, y: y2 }, {});
+    const endX = snap ? snap.x : x2;
+    const endY = snap ? snap.y : y2;
+    el.setAttribute('x2', endX);
+    el.setAttribute('y2', endY);
   } else if (state.tool === 'polygon') {
     const pts = [];
     const sides = state.sides;
@@ -135,12 +145,15 @@ export function finishShapePreview(e) {
   const { state, dom } = ctx;
   if (!state.shapeStart || !state.shapePreview) {
     state.shapeStart = null;
+    state.shapeStartSnap = null;
     return;
   }
-  const p = svgPoint(e);
+  const endResolved = resolveSnapPoint(svgPoint(e), {});
   const { x: x1, y: y1 } = state.shapeStart;
-  const x2 = p.x;
-  const y2 = p.y;
+  const x2 = endResolved.x;
+  const y2 = endResolved.y;
+  const endSnap =
+    endResolved.snap?.isEndpoint && !endResolved.snap.isOwnStroke ? endResolved.snap : null;
   const cx = (x1 + x2) / 2;
   const cy = (y1 + y2) / 2;
   const w = Math.abs(x2 - x1);
@@ -152,7 +165,25 @@ export function finishShapePreview(e) {
 
   if (w < 3 && h < 3) {
     state.shapeStart = null;
+    state.shapeStartSnap = null;
     return;
+  }
+
+  if (state.tool === 'line') {
+    const stroke = [{ x: x1, y: y1 }, { x: x2, y: y2 }];
+    const startSnap = state.shapeStartSnap;
+    if (startSnap && mergeStrokeIntoPath(startSnap.oid, startSnap.index, stroke)) {
+      state.shapeStart = null;
+      state.shapeStartSnap = null;
+      flushRealtime3D();
+      return;
+    }
+    if (endSnap && mergeStrokeIntoPath(endSnap.oid, endSnap.index, stroke)) {
+      state.shapeStart = null;
+      state.shapeStartSnap = null;
+      flushRealtime3D();
+      return;
+    }
   }
 
   const attrs = {
@@ -205,9 +236,11 @@ export function finishShapePreview(e) {
   }
   if (!el) {
     state.shapeStart = null;
+    state.shapeStartSnap = null;
     return;
   }
   const o = addObject(el, type, extraData);
   selectObj(o.id);
   state.shapeStart = null;
+  state.shapeStartSnap = null;
 }

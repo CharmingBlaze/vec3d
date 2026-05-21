@@ -1987,6 +1987,26 @@ input[type='range'] {
   pointer-events: none;
 }
 
+.snap-node-highlight {
+  fill: rgba(255, 107, 53, 0.22);
+  stroke: #ff6b35;
+  stroke-width: 2;
+  pointer-events: none;
+  animation: snap-pulse 0.85s ease-in-out infinite;
+}
+
+@keyframes snap-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    stroke-width: 2;
+  }
+  50% {
+    opacity: 0.72;
+    stroke-width: 2.6;
+  }
+}
+
 .pen-anchor,
 .poly-anchor {
   stroke: #09090b;
